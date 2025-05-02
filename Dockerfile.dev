@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Create .env.local file with Ollama host configuration
 RUN echo "OLLAMA_HOST=http://ollama:11434" > .env.local
