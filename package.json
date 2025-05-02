@@ -6,9 +6,13 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:dev:down": "docker-compose -f docker-compose.dev.yml down"
   },
   "dependencies": {
+    "next": "15.3.1",
+    "ollama": "^0.5.15",
     "airtable": "^0.12.2",
     "lucide-react": "^0.506.0",
     "next": "15.3.1",
@@ -17,6 +21,8 @@
     "react-select": "^5.10.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
