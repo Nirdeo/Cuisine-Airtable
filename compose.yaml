@@ -1,0 +1,42 @@
+services:
+  nextjs-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nextjs-dev
+    restart: unless-stopped
+    init: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - OLLAMA_HOST=http://ollama:11434
+    networks:
+      - appnet
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    networks:
+      - appnet
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  appnet:
+    driver: bridge
+
+volumes:
+  ollama-data:

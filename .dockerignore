@@ -1,41 +1,72 @@
-# Dependencies
-node_modules
-.pnp
-.pnp.js
+# Node.js dependencies
+node_modules/
 
-# Testing
-coverage
+# Next.js build output
+.next/
 
-# Next.js
-.next
-out
-
-# Production
-build
-
-# Misc
-.DS_Store
-*.pem
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Local env files
-.env*.local
-
-# Vercel
-.vercel
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# Git
-.git
+# Version control
+.git/
 .gitignore
 
-# IDE
-.idea
-.vscode
+# IDE/editor settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build outputs
+build/
+dist/
+out/
+
+# Test and debug artifacts
+test/
+tests/
+debug/
+*.log
+
+# Temporary files and folders
+tmp/
+temp/
+*.tmp
+
+# Environment and secrets
+.env*
+*.env
+*.pem
+*.key
+*.crt
+config.local.*
+*.local.yml
+.local/
+
+# Documentation
+README*
+*.md
+docs/
+
+# Public files (if not needed in build, comment out if needed)
+# public/
+
+# Miscellaneous
+*.DS_Store
+*.bak
+*.old
+
+# Python cache (not detected, but for completeness)
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+
+# Go cache (not detected, but for completeness)
+.go-cache/
+
+# Java/Maven/Gradle (not detected, but for completeness)
+.svn/
+.hg/
+
+# Docker files (if not needed in build context)
+Dockerfile*
+docker-compose*
