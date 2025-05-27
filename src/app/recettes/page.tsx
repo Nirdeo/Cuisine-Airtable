@@ -44,7 +44,6 @@ export default function RecettesPage() {
   useEffect(() => {
     let filtered = recettes;
 
-    // Filtrer par terme de recherche
     if (searchTerm) {
       filtered = filtered.filter(recette => {
         const nom = recette.fields.Nom?.toLowerCase() || '';
@@ -58,7 +57,6 @@ export default function RecettesPage() {
       });
     }
 
-    // Filtrer par type de plat
     if (selectedType) {
       filtered = filtered.filter(recette => 
         recette.fields['Type de plat'] === selectedType
@@ -83,7 +81,6 @@ export default function RecettesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
@@ -104,7 +101,6 @@ export default function RecettesPage() {
       </header>
 
       <main className="max-w-7xl mx-auto p-6">
-        {/* En-tête de la page */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
             🍽️ Mes Recettes
@@ -128,10 +124,8 @@ export default function RecettesPage() {
           </div>
         </div>
 
-        {/* Barre de recherche et filtres */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
-            {/* Recherche */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <input
@@ -139,18 +133,17 @@ export default function RecettesPage() {
                 placeholder="Rechercher par nom, ingrédient ou type de plat..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white placeholder-gray-500"
               />
             </div>
             
-            {/* Filtre par type */}
             <div className="lg:w-64">
               <div className="relative">
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <select
                   value={selectedType}
                   onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 appearance-none text-gray-900 bg-white"
                 >
                   <option value="">Tous les types</option>
                   {uniqueTypes.map(type => (
@@ -161,7 +154,6 @@ export default function RecettesPage() {
             </div>
           </div>
           
-          {/* Résultats de recherche */}
           <div className="mt-4 text-sm text-gray-600">
             {filteredRecettes.length} recette(s) trouvée(s)
             {searchTerm && ` pour "${searchTerm}"`}
@@ -169,7 +161,6 @@ export default function RecettesPage() {
           </div>
         </div>
 
-        {/* Grille des recettes */}
         {filteredRecettes.length === 0 ? (
           <div className="text-center py-16">
             <ChefHat className="h-24 w-24 mx-auto mb-6 text-gray-300" />

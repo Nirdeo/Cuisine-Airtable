@@ -193,7 +193,7 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
                   value={formData.ingredients}
                   onChange={handleInputChange}
                   placeholder="Ex: tomates, mozzarella, basilic, huile d'olive..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white placeholder-gray-500"
                   rows={3}
                   required
                 />
@@ -210,7 +210,7 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
                   onChange={handleInputChange}
                   min="1"
                   max="20"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                 />
               </div>
 
@@ -222,7 +222,7 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
                   name="typePlat"
                   value={formData.typePlat}
                   onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
                 >
                   <option value="">Libre choix</option>
                   <option value="Entrée">Entrée</option>
@@ -244,7 +244,7 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
                   value={formData.intolerances}
                   onChange={handleInputChange}
                   placeholder="Ex: gluten, lactose, noix..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white placeholder-gray-500"
                 />
               </div>
 
@@ -258,7 +258,7 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
                   value={formData.preferences}
                   onChange={handleInputChange}
                   placeholder="Ex: cuisine méditerranéenne, épicé, végétarien..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white placeholder-gray-500"
                 />
               </div>
 

@@ -13,15 +13,15 @@ export type AirtableAttachment = {
 };
 
 export type Recette = {
-  id: string;
+  id?: string;
   fields: {
     Nom: string;
     "Type de plat"?: string;
     "Nombre de personnes"?: number;
     Instructions?: string;
-    Ingrédients?: string[];
-    "Analyse nutritionnelle"?: string;
+    Ingrédients?: string[]; // IDs des ingrédients (relations)
+    "Analyse nutritionnelle"?: string[]; // IDs des analyses (relations)
     Intolérances?: string;
-    Image?: AirtableAttachment[];
+    Image?: string; // URL de l'image (string, pas attachment)
   };
 };

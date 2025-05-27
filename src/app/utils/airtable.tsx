@@ -1,6 +1,7 @@
 "use server";
 
 import Airtable from "airtable";
+import { Recette } from "../types/Recettes";
 
 if (!process.env.AIRTABLE_KEY) {
   throw new Error("AIRTABLE_KEY is not defined in environment variables");
@@ -16,24 +17,69 @@ const base = new Airtable({
 
 export async function getAirtableRecettes() {
   const records = await base.table("Recettes").select().all();
-  return records.map((recette) => ({
-    id: recette.id,
-    fields: recette.fields,
-  }));
+  
+  // Résoudre les noms des ingrédients pour chaque recette
+  const recettesWithIngredients = await Promise.all(
+    records.map(async (recette) => {
+      let ingredientNames: string[] = [];
+
+      if (Array.isArray(recette.fields.Ingrédients)) {
+        try {
+          const ingredientRecords = await Promise.all(
+            recette.fields.Ingrédients.map((ingredientId: string) =>
+              base('Ingrédients').find(ingredientId)
+            )
+          );
+                     ingredientNames = ingredientRecords.map((record) => record.fields.Nom as string).filter(Boolean);
+        } catch (error) {
+          console.error('Erreur lors de la résolution des ingrédients:', error);
+          ingredientNames = [];
+        }
+      }
+
+      return {
+        id: recette.id,
+        fields: {
+          ...recette.fields,
+          Ingrédients: ingredientNames,
+        },
+      };
+    })
+  );
+
+  return recettesWithIngredients;
 }
 
 export async function getAirtableRecetteById(id: string) {
   const recette = await base('Recettes').find(id);
 
   let ingredientNames: string[] = [];
+  let analyseText = '';
 
+  // Résoudre les noms des ingrédients
   if (Array.isArray(recette.fields.Ingrédients)) {
     const ingredientRecords = await Promise.all(
       recette.fields.Ingrédients.map((ingredientId: string) =>
         base('Ingrédients').find(ingredientId)
       )
     );
-    ingredientNames = ingredientRecords.map((record) => record.fields.Nom);
+    ingredientNames = ingredientRecords.map((record) => record.fields.Nom as string);
+  }
+
+  // Résoudre l'analyse nutritionnelle
+  if (Array.isArray(recette.fields['Analyse nutritionnelle']) && recette.fields['Analyse nutritionnelle'].length > 0) {
+    try {
+      const analyseRecord = await base('Analyses').find(recette.fields['Analyse nutritionnelle'][0] as string);
+      const fields = analyseRecord.fields;
+      analyseText = `Calories: ${fields.Calories || 'N/A'} kcal
+Protéines: ${fields.Protéines || 'N/A'}g
+Glucides: ${fields.Glucides || 'N/A'}g
+Lipides: ${fields.Lipides || 'N/A'}g
+Vitamines: ${fields.Vitamines || 'N/A'}
+Minéraux: ${fields.Minéraux || 'N/A'}`;
+    } catch (error) {
+      console.error('Erreur lors de la résolution de l\'analyse nutritionnelle:', error);
+    }
   }
 
   return {
@@ -41,6 +87,7 @@ export async function getAirtableRecetteById(id: string) {
     fields: {
       ...recette.fields,
       Ingrédients: ingredientNames,
+      'Analyse nutritionnelle': analyseText,
       Image: recette.fields.Image || '',
     },
   };
@@ -48,18 +95,30 @@ export async function getAirtableRecetteById(id: string) {
 
 export async function addAirtableRecette(recette: Recette) {
   try {
-    const createdRecords = await base('Recettes').create([{
-      "fields": {
-        "Nom": recette.fields.Nom,
-        "Type de plat": recette.fields["Type de plat"],
-        "Nombre de personnes": recette.fields["Nombre de personnes"],
-        "Instructions": recette.fields.Instructions,
-        "Ingrédients": recette.fields.Ingrédients,
-        "Analyse nutritionnelle": recette.fields["Analyse nutritionnelle"],
-        "Intolérances": recette.fields.Intolérances,
-        "Image": recette.fields.Image
-      },
-    }]);
+    const fields: any = {
+      "Nom": recette.fields.Nom,
+      "Type de plat": recette.fields["Type de plat"],
+      "Nombre de personnes": recette.fields["Nombre de personnes"],
+      "Instructions": recette.fields.Instructions,
+      "Intolérances": recette.fields.Intolérances,
+    };
+
+    // Ajouter les ingrédients si présents (relations)
+    if (recette.fields.Ingrédients && recette.fields.Ingrédients.length > 0) {
+      fields["Ingrédients"] = recette.fields.Ingrédients;
+    }
+
+    // Ajouter l'analyse nutritionnelle si présente (relations)
+    if (recette.fields["Analyse nutritionnelle"] && recette.fields["Analyse nutritionnelle"].length > 0) {
+      fields["Analyse nutritionnelle"] = recette.fields["Analyse nutritionnelle"];
+    }
+
+    // Ajouter l'image si présente (URL string)
+    if (recette.fields.Image) {
+      fields["Image"] = recette.fields.Image;
+    }
+
+    const createdRecords = await base('Recettes').create([{ fields }]);
 
     console.log("Recette ajoutée avec succès. ID:", createdRecords[0].id);
     return {
@@ -97,8 +156,21 @@ export async function getAirtableIngredients() {
 
 export async function getAirtableAnalyses() {
   const records = await base.table("Analyses").select().all();
-  return records.map((analyse) => ({
-    id: analyse.id,
-    fields: analyse.fields,
-  }));
+  return records.map((analyse) => {
+    // Créer un nom descriptif basé sur les données nutritionnelles
+    const calories = analyse.fields.Calories || 'N/A';
+    const proteines = analyse.fields.Protéines || 'N/A';
+    const glucides = analyse.fields.Glucides || 'N/A';
+    const lipides = analyse.fields.Lipides || 'N/A';
+    
+    const nom = `${calories} kcal - P:${proteines}g G:${glucides}g L:${lipides}g`;
+    
+    return {
+      id: analyse.id,
+      fields: {
+        ...analyse.fields,
+        Nom: nom, // Ajouter un nom descriptif
+      },
+    };
+  });
 }
