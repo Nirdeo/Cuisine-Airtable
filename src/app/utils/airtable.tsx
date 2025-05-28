@@ -80,6 +80,9 @@ Minéraux: ${fields.Minéraux || 'N/A'}`;
     } catch (error) {
       console.error('Erreur lors de la résolution de l\'analyse nutritionnelle:', error);
     }
+  } else if (recette.fields['Analyse nutritionnelle (texte)']) {
+    // Utiliser le champ texte comme fallback
+    analyseText = recette.fields['Analyse nutritionnelle (texte)'] as string;
   }
 
   return {
@@ -110,6 +113,13 @@ export async function addAirtableRecette(recette: Recette) {
     
     if (recette.fields["Analyse nutritionnelle (texte)"]) {
       fields["Analyse nutritionnelle (texte)"] = recette.fields["Analyse nutritionnelle (texte)"];
+      
+      // Créer automatiquement un enregistrement d'analyse nutritionnelle
+      const analyseResult = await createAnalyseNutritionnelle(recette.fields["Analyse nutritionnelle (texte)"]);
+      if (analyseResult.success && analyseResult.id) {
+        fields["Analyse nutritionnelle"] = [analyseResult.id];
+        console.log("Analyse nutritionnelle créée avec l'ID:", analyseResult.id);
+      }
     }
 
     // Garder la compatibilité avec les relations existantes si nécessaire
@@ -117,7 +127,8 @@ export async function addAirtableRecette(recette: Recette) {
       fields["Ingrédients"] = recette.fields.Ingrédients;
     }
     
-    if (recette.fields["Analyse nutritionnelle"] && Array.isArray(recette.fields["Analyse nutritionnelle"]) && recette.fields["Analyse nutritionnelle"].length > 0) {
+    // Pour l'analyse nutritionnelle, utiliser la relation existante seulement si on n'en a pas créé une nouvelle
+    if (recette.fields["Analyse nutritionnelle"] && Array.isArray(recette.fields["Analyse nutritionnelle"]) && recette.fields["Analyse nutritionnelle"].length > 0 && !fields["Analyse nutritionnelle"]) {
       fields["Analyse nutritionnelle"] = recette.fields["Analyse nutritionnelle"];
     }
 
@@ -143,7 +154,6 @@ export async function addAirtableRecette(recette: Recette) {
     };
   }
 }
-
 
 export async function deleteAirtableRecette(id: string) {
   try {
@@ -183,4 +193,55 @@ export async function getAirtableAnalyses() {
       },
     };
   });
+}
+
+export async function createAnalyseNutritionnelle(analyseText: string) {
+  try {
+    // Parser le texte d'analyse nutritionnelle pour extraire les valeurs
+    const parseNutritionalValue = (text: string, keyword: string): string => {
+      const regex = new RegExp(`${keyword}\\s*:?\\s*([^,\\n]+)`, 'i');
+      const match = text.match(regex);
+      if (match) {
+        return match[1].trim().replace(/[^\d.,]/g, ''); // Garder seulement les chiffres et points/virgules
+      }
+      return '';
+    };
+
+    const calories = parseNutritionalValue(analyseText, 'calories?');
+    const proteines = parseNutritionalValue(analyseText, 'protéines?');
+    const glucides = parseNutritionalValue(analyseText, 'glucides?');
+    const lipides = parseNutritionalValue(analyseText, 'lipides?');
+    
+    // Extraire vitamines et minéraux (texte libre)
+    const vitaminesMatch = analyseText.match(/vitamines?\s*:?\s*([^,\n]+)/i);
+    const vitamines = vitaminesMatch ? vitaminesMatch[1].trim() : '';
+    
+    const minerauxMatch = analyseText.match(/minéraux?\s*:?\s*([^,\n]+)/i);
+    const mineraux = minerauxMatch ? minerauxMatch[1].trim() : '';
+
+    const fields: any = {};
+    
+    // Ajouter seulement les champs qui ont des valeurs
+    if (calories) fields.Calories = parseFloat(calories) || calories;
+    if (proteines) fields.Protéines = parseFloat(proteines) || proteines;
+    if (glucides) fields.Glucides = parseFloat(glucides) || glucides;
+    if (lipides) fields.Lipides = parseFloat(lipides) || lipides;
+    if (vitamines) fields.Vitamines = vitamines;
+    if (mineraux) fields.Minéraux = mineraux;
+
+    console.log("Création d'analyse nutritionnelle avec les champs:", fields);
+
+    const createdRecord = await base('Analyses').create([{ fields }]);
+    
+    return {
+      success: true,
+      id: createdRecord[0].id,
+    };
+  } catch (error) {
+    console.error("Erreur lors de la création de l'analyse nutritionnelle:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur lors de la création de l'analyse nutritionnelle.",
+    };
+  }
 }
