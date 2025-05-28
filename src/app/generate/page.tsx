@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Wand2, Loader2, ChefHat } from "lucide-react";
+import { ArrowLeft, Wand2, Loader2, ChefHat, X } from "lucide-react";
 
 interface GeneratedRecipe {
   nom: string;
@@ -15,18 +15,60 @@ interface GeneratedRecipe {
   difficulte: string;
 }
 
+interface Ingredient {
+  id: string;
+  fields: {
+    Nom: string;
+  };
+}
+
 export default function GenerateRecipe() {
   const [formData, setFormData] = useState({
-    ingredients: "",
+    ingredients: [] as string[], // Maintenant un array d'IDs
     nombrePersonnes: 4,
     intolerances: "",
     typePlat: "",
     preferences: ""
   });
+  const [availableIngredients, setAvailableIngredients] = useState<Ingredient[]>([]);
+  const [selectedIngredients, setSelectedIngredients] = useState<Ingredient[]>([]);
+  const [ingredientSearch, setIngredientSearch] = useState("");
+  const [showIngredientDropdown, setShowIngredientDropdown] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState<GeneratedRecipe | null>(null);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  // Charger les ingrédients disponibles
+  useEffect(() => {
+    const loadIngredients = async () => {
+      try {
+        const response = await fetch('/api/ingredients');
+        if (response.ok) {
+          const ingredients = await response.json();
+          setAvailableIngredients(ingredients);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des ingrédients:', error);
+      }
+    };
+    loadIngredients();
+  }, []);
+
+  // Fermer le dropdown quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.ingredient-dropdown')) {
+        setShowIngredientDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -35,6 +77,35 @@ export default function GenerateRecipe() {
       [name]: name === "nombrePersonnes" ? parseInt(value) : value
     }));
   };
+
+  // Gestion de la sélection d'ingrédients
+  const addIngredient = (ingredient: Ingredient) => {
+    if (!selectedIngredients.find(i => i.id === ingredient.id)) {
+      const newSelected = [...selectedIngredients, ingredient];
+      setSelectedIngredients(newSelected);
+      setFormData(prev => ({
+        ...prev,
+        ingredients: newSelected.map(i => i.id)
+      }));
+    }
+    setIngredientSearch("");
+    setShowIngredientDropdown(false);
+  };
+
+  const removeIngredient = (ingredientId: string) => {
+    const newSelected = selectedIngredients.filter(i => i.id !== ingredientId);
+    setSelectedIngredients(newSelected);
+    setFormData(prev => ({
+      ...prev,
+      ingredients: newSelected.map(i => i.id)
+    }));
+  };
+
+  // Filtrer les ingrédients selon la recherche
+  const filteredIngredients = availableIngredients.filter(ingredient =>
+    ingredient.fields.Nom.toLowerCase().includes(ingredientSearch.toLowerCase()) &&
+    !selectedIngredients.find(selected => selected.id === ingredient.id)
+  );
 
   const formatAnalyseNutritionnelle = (analyse: string | object): string => {
     if (typeof analyse === 'string') {
@@ -67,8 +138,8 @@ export default function GenerateRecipe() {
   };
 
   const generateRecipe = async () => {
-    if (!formData.ingredients.trim()) {
-      setError("Veuillez spécifier au moins quelques ingrédients");
+    if (!formData.ingredients.length) {
+      setError("Veuillez sélectionner au moins quelques ingrédients");
       return;
     }
 
@@ -78,7 +149,7 @@ export default function GenerateRecipe() {
     try {
       const prompt = `Génère une recette de cuisine détaillée avec les contraintes suivantes :
 
-Ingrédients disponibles : ${formData.ingredients}
+Ingrédients disponibles : ${formData.ingredients.map(id => availableIngredients.find(i => i.id === id)?.fields.Nom).join(", ")}
 Nombre de personnes : ${formData.nombrePersonnes}
 Intolérances alimentaires : ${formData.intolerances || "Aucune"}
 Type de plat souhaité : ${formData.typePlat || "Libre"}
@@ -189,8 +260,10 @@ RÈGLES STRICTES:
           "Nombre de personnes": formData.nombrePersonnes,
           Intolérances: formData.intolerances || "",
           Image: `https://source.unsplash.com/800x600/?${encodeURIComponent(generatedRecipe.nom)},food`,
-          // Utiliser les nouveaux champs texte pour ne pas casser les relations existantes
-          "Ingrédients (texte)": generatedRecipe.ingredients.join(", "),
+          // Utiliser les IDs des ingrédients sélectionnés pour les relations
+          "Ingrédients": formData.ingredients,
+          // Utiliser les nouveaux champs texte pour l'affichage
+          "Ingrédients (texte)": selectedIngredients.map(i => i.fields.Nom).join(", "),
           "Analyse nutritionnelle (texte)": formatAnalyseNutritionnelle(generatedRecipe.analyseNutritionnelle)
         }
       };
@@ -256,15 +329,55 @@ RÈGLES STRICTES:
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Ingrédients disponibles *
                 </label>
-                <textarea
-                  name="ingredients"
-                  value={formData.ingredients}
-                  onChange={handleInputChange}
-                  placeholder="Ex: tomates, mozzarella, basilic, huile d'olive..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white placeholder-gray-500"
-                  rows={3}
-                  required
-                />
+                <div className="relative ingredient-dropdown">
+                  <input
+                    type="text"
+                    value={ingredientSearch}
+                    onChange={(e) => {
+                      setIngredientSearch(e.target.value);
+                      setShowIngredientDropdown(true);
+                    }}
+                    onFocus={() => setShowIngredientDropdown(true)}
+                    placeholder="Rechercher un ingrédient..."
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white placeholder-gray-500"
+                  />
+                  {showIngredientDropdown && filteredIngredients.length > 0 && (
+                    <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto mt-1">
+                      {filteredIngredients.map((ingredient) => (
+                        <div
+                          key={ingredient.id}
+                          className="px-4 py-2 hover:bg-orange-100 cursor-pointer border-b border-gray-100 last:border-b-0 text-gray-900"
+                          onClick={() => addIngredient(ingredient)}
+                        >
+                          {ingredient.fields.Nom}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Affichage des ingrédients sélectionnés */}
+                {selectedIngredients.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-sm text-gray-600 mb-2">Ingrédients sélectionnés :</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedIngredients.map((ingredient) => (
+                        <span
+                          key={ingredient.id}
+                          className="inline-flex items-center px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"
+                        >
+                          {ingredient.fields.Nom}
+                          <button
+                            onClick={() => removeIngredient(ingredient.id)}
+                            className="ml-2 text-orange-600 hover:text-orange-800"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
