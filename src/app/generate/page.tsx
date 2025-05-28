@@ -50,6 +50,22 @@ export default function GenerateRecipe() {
     return 'Analyse nutritionnelle non disponible';
   };
 
+  const repairJSON = (jsonString: string): string => {
+    try {
+      let repaired = jsonString;
+      
+      repaired = repaired.replace(/"\s*\n\s*"/g, '",\n"');
+      
+      repaired = repaired.replace(/]\s*\n\s*"/g, '],\n"');
+      
+      repaired = repaired.replace(/,(\s*})/g, '$1');
+      
+      return repaired;
+    } catch (error) {
+      return jsonString;
+    }
+  };
+
   const generateRecipe = async () => {
     if (!formData.ingredients.trim()) {
       setError("Veuillez spécifier au moins quelques ingrédients");
@@ -68,19 +84,26 @@ Intolérances alimentaires : ${formData.intolerances || "Aucune"}
 Type de plat souhaité : ${formData.typePlat || "Libre"}
 Préférences culinaires : ${formData.preferences || "Aucune"}
 
-Réponds UNIQUEMENT au format JSON suivant (sans markdown, sans backticks) :
+IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ou après, sans backticks, sans markdown.
+
+Format JSON requis :
 {
   "nom": "Nom de la recette",
-  "instructions": "Instructions détaillées étape par étape",
-  "ingredients": ["ingrédient 1", "ingrédient 2", "..."],
+  "instructions": "Instructions détaillées étape par étape. Utilise des phrases simples et évite les caractères spéciaux.",
+  "ingredients": ["ingrédient 1", "ingrédient 2", "ingrédient 3"],
   "typePlat": "Type de plat (entrée/plat/dessert)",
-  "analyseNutritionnelle": "Analyse nutritionnelle détaillée avec calories, protéines, glucides, lipides, vitamines et minéraux pour ${formData.nombrePersonnes} personnes sous forme de TEXTE",
+  "analyseNutritionnelle": "Analyse nutritionnelle détaillée avec calories, protéines, glucides, lipides, vitamines et minéraux pour ${formData.nombrePersonnes} personnes. Utilise du texte simple sans caractères spéciaux.",
   "tempsPreparation": "Temps de préparation estimé",
   "difficulte": "Niveau de difficulté (Facile/Moyen/Difficile)"
 }
 
-IMPORTANT: L'analyseNutritionnelle doit être une chaîne de caractères, pas un objet JSON.
-Assure-toi que la recette respecte les intolérances alimentaires mentionnées et utilise principalement les ingrédients fournis.`;
+RÈGLES STRICTES:
+- Utilise uniquement des guillemets droits (")
+- Évite les sauts de ligne dans les valeurs JSON
+- Utilise des phrases courtes et simples
+- Pas de caractères spéciaux ou d'accents dans les clés JSON
+- L'analyseNutritionnelle doit être une chaîne de caractères, pas un objet
+- Assure-toi que la recette respecte les intolérances alimentaires mentionnées`;
 
       const response = await fetch('/api/ollama', {
         method: 'POST',
@@ -112,8 +135,29 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
           jsonContent = jsonContent.replace(/```\s*/, '').replace(/```\s*$/, '');
         }
         
-        const recipe = JSON.parse(jsonContent);
+        // Nettoyage supplémentaire pour les caractères problématiques
+        jsonContent = jsonContent
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Supprimer les caractères de contrôle
+          .replace(/\n/g, '\\n') // Échapper les sauts de ligne
+          .replace(/\r/g, '\\r') // Échapper les retours chariot
+          .replace(/\t/g, '\\t') // Échapper les tabulations
+          .replace(/"/g, '"') // Remplacer les guillemets courbes par des droits
+          .replace(/"/g, '"')
+          .replace(/'/g, "'") // Remplacer les apostrophes courbes
+          .replace(/'/g, "'");
         
+        console.log("Contenu JSON nettoyé:", jsonContent);
+        
+        const repairedJSON = repairJSON(jsonContent);
+        
+        const recipe = JSON.parse(repairedJSON);
+        
+        // Validation des champs requis
+        if (!recipe.nom || !recipe.instructions || !recipe.ingredients) {
+          throw new Error("Champs requis manquants dans la réponse de l'IA");
+        }
+        
+        // S'assurer que analyseNutritionnelle est une chaîne
         if (recipe.analyseNutritionnelle && typeof recipe.analyseNutritionnelle === 'object') {
           recipe.analyseNutritionnelle = formatAnalyseNutritionnelle(recipe.analyseNutritionnelle);
         }
@@ -121,7 +165,8 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
         setGeneratedRecipe(recipe);
       } catch (parseError) {
         console.error('Erreur de parsing JSON:', parseError);
-        setError("Erreur lors de l'analyse de la recette générée. Veuillez réessayer.");
+        console.error('Contenu reçu:', content);
+        setError("Erreur lors de l'analyse de la recette générée. La réponse de l'IA n'est pas au bon format. Veuillez réessayer.");
       }
     } catch (error) {
       console.error('Erreur:', error);
