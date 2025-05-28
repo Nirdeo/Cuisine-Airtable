@@ -127,13 +127,25 @@ export default function GenerateRecipe() {
 
   const repairJSON = (jsonString: string): string => {
     try {
-      let repaired = jsonString;
+      let repaired = jsonString.trim();
       
+      // Nettoyer les caractères problématiques
       repaired = repaired.replace(/"\s*\n\s*"/g, '",\n"');
-      
       repaired = repaired.replace(/]\s*\n\s*"/g, '],\n"');
-      
       repaired = repaired.replace(/,(\s*})/g, '$1');
+      
+      // Vérifier si le JSON se termine correctement
+      if (!repaired.endsWith('}')) {
+        // Compter les accolades ouvrantes et fermantes
+        const openBraces = (repaired.match(/\{/g) || []).length;
+        const closeBraces = (repaired.match(/\}/g) || []).length;
+        
+        // Ajouter les accolades fermantes manquantes
+        const missingBraces = openBraces - closeBraces;
+        for (let i = 0; i < missingBraces; i++) {
+          repaired += '}';
+        }
+      }
       
       return repaired;
     } catch (error) {
@@ -162,26 +174,27 @@ Intolérances alimentaires : ${formData.intolerances || "Aucune"}
 Type de plat souhaité : ${formData.typePlat || "Libre"}
 Préférences culinaires : ${formData.preferences || "Aucune"}
 
-IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ou après, sans backticks, sans markdown.
+IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide et COMPLET, sans texte avant ou après, sans backticks, sans markdown.
 
-Format JSON requis :
+Format JSON EXACT requis (RESPECTE EXACTEMENT cette structure) :
 {
   "nom": "Nom de la recette",
-  "instructions": "Instructions détaillées étape par étape. Utilise des phrases simples et évite les caractères spéciaux.",
-  "ingredients": ["ingrédient 1", "ingrédient 2", "ingrédient 3"],
-  "typePlat": "Type de plat (entrée/plat/dessert)",
-  "analyseNutritionnelle": "Analyse nutritionnelle détaillée avec calories, protéines, glucides, lipides, vitamines et minéraux pour ${formData.nombrePersonnes} personnes. Utilise du texte simple sans caractères spéciaux.",
-  "tempsPreparation": "Temps de préparation estimé",
-  "difficulte": "Niveau de difficulté (Facile/Moyen/Difficile)"
+  "instructions": "Instructions détaillées étape par étape",
+  "ingredients": ["ingrédient 1", "ingrédient 2"],
+  "typePlat": "Type de plat",
+  "analyseNutritionnelle": "Analyse nutritionnelle détaillée",
+  "tempsPreparation": "Temps de préparation",
+  "difficulte": "Facile"
 }
 
 RÈGLES STRICTES:
+- Commence par { et termine par }
 - Utilise uniquement des guillemets droits (")
-- Évite les sauts de ligne dans les valeurs JSON
-- Utilise des phrases courtes et simples
-- Pas de caractères spéciaux ou d'accents dans les clés JSON
-- L'analyseNutritionnelle doit être une chaîne de caractères, pas un objet
-- Assure-toi que la recette respecte les intolérances alimentaires mentionnées`;
+- Chaque propriété doit être suivie d'une virgule SAUF la dernière
+- Évite les sauts de ligne dans les valeurs
+- L'analyseNutritionnelle doit être une chaîne de caractères simple
+- Assure-toi que le JSON est COMPLET et VALIDE
+- Ne coupe jamais le JSON au milieu`;
 
       const response = await fetch('/api/ollama', {
         method: 'POST',
@@ -227,6 +240,12 @@ RÈGLES STRICTES:
         console.log("Contenu JSON nettoyé:", jsonContent);
         
         const repairedJSON = repairJSON(jsonContent);
+        console.log("JSON réparé:", repairedJSON);
+        
+        // Validation supplémentaire : vérifier que le JSON commence et se termine correctement
+        if (!repairedJSON.trim().startsWith('{') || !repairedJSON.trim().endsWith('}')) {
+          throw new Error("Le JSON ne commence pas par { ou ne se termine pas par }");
+        }
         
         const recipe = JSON.parse(repairedJSON);
         
