@@ -135,16 +135,19 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
     if (!generatedRecipe) return;
 
     try {
+      // Convertir les données de l'IA en format Airtable
       const recetteData = {
         fields: {
           Nom: generatedRecipe.nom,
           Instructions: generatedRecipe.instructions,
-          Ingrédients: generatedRecipe.ingredients,
           "Type de plat": generatedRecipe.typePlat,
           "Nombre de personnes": formData.nombrePersonnes,
-          "Analyse nutritionnelle": generatedRecipe.analyseNutritionnelle,
-          Intolérances: formData.intolerances,
-          Image: `https://source.unsplash.com/800x600/?${encodeURIComponent(generatedRecipe.nom)},food`
+          Intolérances: formData.intolerances || "",
+          Image: `https://source.unsplash.com/800x600/?${encodeURIComponent(generatedRecipe.nom)},food`,
+          // Pour l'instant, on stocke les ingrédients et l'analyse comme du texte simple
+          // TODO: Implémenter la création d'ingrédients et d'analyses en tant que relations
+          "Ingrédients (texte)": generatedRecipe.ingredients.join(", "),
+          "Analyse nutritionnelle (texte)": formatAnalyseNutritionnelle(generatedRecipe.analyseNutritionnelle)
         }
       };
 
@@ -160,11 +163,14 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
         alert("Recette sauvegardée avec succès !");
         router.push('/recettes');
       } else {
-        throw new Error('Erreur lors de la sauvegarde');
+        const errorData = await response.json();
+        console.error('Erreur de sauvegarde:', errorData);
+        throw new Error(errorData.error || 'Erreur lors de la sauvegarde');
       }
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      alert("Erreur lors de la sauvegarde de la recette.");
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      alert(`Erreur lors de la sauvegarde de la recette: ${errorMessage}`);
     }
   };
 

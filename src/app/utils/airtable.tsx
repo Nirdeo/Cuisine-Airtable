@@ -103,14 +103,24 @@ export async function addAirtableRecette(recette: Recette) {
       "Intolérances": recette.fields.Intolérances,
     };
 
-    // Ajouter les ingrédients si présents (relations)
+    // Ajouter les ingrédients si présents (relations ou texte)
     if (recette.fields.Ingrédients && recette.fields.Ingrédients.length > 0) {
       fields["Ingrédients"] = recette.fields.Ingrédients;
     }
+    
+    // Ajouter les ingrédients en texte si présents
+    if (recette.fields["Ingrédients (texte)"]) {
+      fields["Ingrédients (texte)"] = recette.fields["Ingrédients (texte)"];
+    }
 
-    // Ajouter l'analyse nutritionnelle si présente (relations)
+    // Ajouter l'analyse nutritionnelle si présente (relations ou texte)
     if (recette.fields["Analyse nutritionnelle"] && recette.fields["Analyse nutritionnelle"].length > 0) {
       fields["Analyse nutritionnelle"] = recette.fields["Analyse nutritionnelle"];
+    }
+    
+    // Ajouter l'analyse nutritionnelle en texte si présente
+    if (recette.fields["Analyse nutritionnelle (texte)"]) {
+      fields["Analyse nutritionnelle (texte)"] = recette.fields["Analyse nutritionnelle (texte)"];
     }
 
     // Ajouter l'image si présente (URL string)
@@ -129,7 +139,7 @@ export async function addAirtableRecette(recette: Recette) {
     console.error("Erreur lors de l'ajout de la recette :", error);
     return {
       success: false,
-      error: "Erreur lors de l'ajout de la recette.",
+      error: error instanceof Error ? error.message : "Erreur lors de l'ajout de la recette.",
     };
   }
 }
