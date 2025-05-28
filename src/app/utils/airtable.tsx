@@ -103,30 +103,30 @@ export async function addAirtableRecette(recette: Recette) {
       "Intolérances": recette.fields.Intolérances,
     };
 
-    // Ajouter les ingrédients si présents (relations ou texte)
-    if (recette.fields.Ingrédients && recette.fields.Ingrédients.length > 0) {
-      fields["Ingrédients"] = recette.fields.Ingrédients;
-    }
-    
-    // Ajouter les ingrédients en texte si présents
+    // Utiliser les nouveaux champs texte pour ne pas casser les relations existantes
     if (recette.fields["Ingrédients (texte)"]) {
       fields["Ingrédients (texte)"] = recette.fields["Ingrédients (texte)"];
     }
-
-    // Ajouter l'analyse nutritionnelle si présente (relations ou texte)
-    if (recette.fields["Analyse nutritionnelle"] && recette.fields["Analyse nutritionnelle"].length > 0) {
-      fields["Analyse nutritionnelle"] = recette.fields["Analyse nutritionnelle"];
-    }
     
-    // Ajouter l'analyse nutritionnelle en texte si présente
     if (recette.fields["Analyse nutritionnelle (texte)"]) {
       fields["Analyse nutritionnelle (texte)"] = recette.fields["Analyse nutritionnelle (texte)"];
+    }
+
+    // Garder la compatibilité avec les relations existantes si nécessaire
+    if (recette.fields.Ingrédients && Array.isArray(recette.fields.Ingrédients) && recette.fields.Ingrédients.length > 0) {
+      fields["Ingrédients"] = recette.fields.Ingrédients;
+    }
+    
+    if (recette.fields["Analyse nutritionnelle"] && Array.isArray(recette.fields["Analyse nutritionnelle"]) && recette.fields["Analyse nutritionnelle"].length > 0) {
+      fields["Analyse nutritionnelle"] = recette.fields["Analyse nutritionnelle"];
     }
 
     // Ajouter l'image si présente (URL string)
     if (recette.fields.Image) {
       fields["Image"] = recette.fields.Image;
     }
+
+    console.log("Données à envoyer à Airtable:", JSON.stringify(fields, null, 2));
 
     const createdRecords = await base('Recettes').create([{ fields }]);
 

@@ -144,8 +144,7 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
           "Nombre de personnes": formData.nombrePersonnes,
           Intolérances: formData.intolerances || "",
           Image: `https://source.unsplash.com/800x600/?${encodeURIComponent(generatedRecipe.nom)},food`,
-          // Pour l'instant, on stocke les ingrédients et l'analyse comme du texte simple
-          // TODO: Implémenter la création d'ingrédients et d'analyses en tant que relations
+          // Utiliser les nouveaux champs texte pour ne pas casser les relations existantes
           "Ingrédients (texte)": generatedRecipe.ingredients.join(", "),
           "Analyse nutritionnelle (texte)": formatAnalyseNutritionnelle(generatedRecipe.analyseNutritionnelle)
         }
