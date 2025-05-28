@@ -46,7 +46,11 @@ export default function GenerateRecipe() {
         const response = await fetch('/api/ingredients');
         if (response.ok) {
           const ingredients = await response.json();
-          setAvailableIngredients(ingredients);
+          // Filtrer les ingrédients qui ont un nom valide
+          const validIngredients = ingredients.filter((ingredient: Ingredient) => 
+            ingredient.fields && ingredient.fields.Nom && ingredient.fields.Nom.trim() !== ''
+          );
+          setAvailableIngredients(validIngredients);
         }
       } catch (error) {
         console.error('Erreur lors du chargement des ingrédients:', error);
@@ -102,7 +106,7 @@ export default function GenerateRecipe() {
   };
 
   // Filtrer les ingrédients selon la recherche
-  const filteredIngredients = availableIngredients.filter(ingredient =>
+  const filteredIngredients = availableIngredients.filter(ingredient => 
     ingredient.fields.Nom.toLowerCase().includes(ingredientSearch.toLowerCase()) &&
     !selectedIngredients.find(selected => selected.id === ingredient.id)
   );
@@ -149,7 +153,10 @@ export default function GenerateRecipe() {
     try {
       const prompt = `Génère une recette de cuisine détaillée avec les contraintes suivantes :
 
-Ingrédients disponibles : ${formData.ingredients.map(id => availableIngredients.find(i => i.id === id)?.fields.Nom).join(", ")}
+Ingrédients disponibles : ${formData.ingredients.map(id => {
+        const ingredient = availableIngredients.find(i => i.id === id);
+        return ingredient?.fields.Nom || 'Ingrédient non trouvé';
+      }).join(", ")}
 Nombre de personnes : ${formData.nombrePersonnes}
 Intolérances alimentaires : ${formData.intolerances || "Aucune"}
 Type de plat souhaité : ${formData.typePlat || "Libre"}
