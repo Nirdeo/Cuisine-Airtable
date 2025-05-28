@@ -10,7 +10,7 @@ interface GeneratedRecipe {
   instructions: string;
   ingredients: string[];
   typePlat: string;
-  analyseNutritionnelle: string;
+  analyseNutritionnelle: string | object;
   tempsPreparation: string;
   difficulte: string;
 }
@@ -34,6 +34,20 @@ export default function GenerateRecipe() {
       ...prev,
       [name]: name === "nombrePersonnes" ? parseInt(value) : value
     }));
+  };
+
+  const formatAnalyseNutritionnelle = (analyse: string | object): string => {
+    if (typeof analyse === 'string') {
+      return analyse;
+    }
+    
+    if (typeof analyse === 'object' && analyse !== null) {
+      return Object.entries(analyse)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('\n');
+    }
+    
+    return 'Analyse nutritionnelle non disponible';
   };
 
   const generateRecipe = async () => {
@@ -60,11 +74,12 @@ Réponds UNIQUEMENT au format JSON suivant (sans markdown, sans backticks) :
   "instructions": "Instructions détaillées étape par étape",
   "ingredients": ["ingrédient 1", "ingrédient 2", "..."],
   "typePlat": "Type de plat (entrée/plat/dessert)",
-  "analyseNutritionnelle": "Analyse nutritionnelle détaillée avec calories, protéines, glucides, lipides, vitamines et minéraux pour ${formData.nombrePersonnes} personnes",
+  "analyseNutritionnelle": "Analyse nutritionnelle détaillée avec calories, protéines, glucides, lipides, vitamines et minéraux pour ${formData.nombrePersonnes} personnes sous forme de TEXTE",
   "tempsPreparation": "Temps de préparation estimé",
   "difficulte": "Niveau de difficulté (Facile/Moyen/Difficile)"
 }
 
+IMPORTANT: L'analyseNutritionnelle doit être une chaîne de caractères, pas un objet JSON.
 Assure-toi que la recette respecte les intolérances alimentaires mentionnées et utilise principalement les ingrédients fournis.`;
 
       const response = await fetch('/api/ollama', {
@@ -89,10 +104,8 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
       const content = data.message?.content || '';
       
       try {
-        // Nettoyer le contenu pour extraire le JSON
         let jsonContent = content.trim();
         
-        // Supprimer les backticks markdown si présents
         if (jsonContent.startsWith('```json')) {
           jsonContent = jsonContent.replace(/```json\s*/, '').replace(/```\s*$/, '');
         } else if (jsonContent.startsWith('```')) {
@@ -100,6 +113,11 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
         }
         
         const recipe = JSON.parse(jsonContent);
+        
+        if (recipe.analyseNutritionnelle && typeof recipe.analyseNutritionnelle === 'object') {
+          recipe.analyseNutritionnelle = formatAnalyseNutritionnelle(recipe.analyseNutritionnelle);
+        }
+        
         setGeneratedRecipe(recipe);
       } catch (parseError) {
         console.error('Erreur de parsing JSON:', parseError);
@@ -339,7 +357,12 @@ Assure-toi que la recette respecte les intolérances alimentaires mentionnées e
 
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Analyse nutritionnelle :</h4>
-                  <p className="text-gray-700 whitespace-pre-line">{generatedRecipe.analyseNutritionnelle}</p>
+                  <p className="text-gray-700 whitespace-pre-line">
+                    {generatedRecipe.analyseNutritionnelle ? 
+                      formatAnalyseNutritionnelle(generatedRecipe.analyseNutritionnelle) : 
+                      'Analyse nutritionnelle non disponible'
+                    }
+                  </p>
                 </div>
 
                 <button
