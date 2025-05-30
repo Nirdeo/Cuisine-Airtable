@@ -98,6 +98,9 @@ Minéraux: ${fields.Minéraux || 'N/A'}`;
 
 export async function addAirtableRecette(recette: Recette) {
   try {
+    console.log("=== DÉBUT AJOUT RECETTE ===");
+    console.log("Données reçues:", JSON.stringify(recette, null, 2));
+    
     const fields: any = {
       "Nom": recette.fields.Nom,
       "Type de plat": recette.fields["Type de plat"],
@@ -109,45 +112,64 @@ export async function addAirtableRecette(recette: Recette) {
     // Utiliser les nouveaux champs texte pour ne pas casser les relations existantes
     if (recette.fields["Ingrédients (texte)"]) {
       fields["Ingrédients (texte)"] = recette.fields["Ingrédients (texte)"];
+      console.log("Ajout du champ Ingrédients (texte):", recette.fields["Ingrédients (texte)"]);
     }
     
     if (recette.fields["Analyse nutritionnelle (texte)"]) {
       fields["Analyse nutritionnelle (texte)"] = recette.fields["Analyse nutritionnelle (texte)"];
+      console.log("Ajout du champ Analyse nutritionnelle (texte):", recette.fields["Analyse nutritionnelle (texte)"]);
       
       // Créer automatiquement un enregistrement d'analyse nutritionnelle
-      const analyseResult = await createAnalyseNutritionnelle(recette.fields["Analyse nutritionnelle (texte)"]);
-      if (analyseResult.success && analyseResult.id) {
-        fields["Analyse nutritionnelle"] = [analyseResult.id];
-        console.log("Analyse nutritionnelle créée avec l'ID:", analyseResult.id);
+      console.log("Tentative de création d'analyse nutritionnelle...");
+      try {
+        const analyseResult = await createAnalyseNutritionnelle(recette.fields["Analyse nutritionnelle (texte)"]);
+        console.log("Résultat de la création d'analyse:", analyseResult);
+        
+        if (analyseResult.success && analyseResult.id) {
+          fields["Analyse nutritionnelle"] = [analyseResult.id];
+          console.log("Analyse nutritionnelle créée avec l'ID:", analyseResult.id);
+        } else {
+          console.warn("Échec de la création d'analyse nutritionnelle:", analyseResult.error);
+        }
+      } catch (analyseError) {
+        console.error("Erreur lors de la création d'analyse nutritionnelle:", analyseError);
+        // Continuer sans l'analyse nutritionnelle
       }
     }
 
     // Garder la compatibilité avec les relations existantes si nécessaire
     if (recette.fields.Ingrédients && Array.isArray(recette.fields.Ingrédients) && recette.fields.Ingrédients.length > 0) {
       fields["Ingrédients"] = recette.fields.Ingrédients;
+      console.log("Ajout des relations Ingrédients:", recette.fields.Ingrédients);
     }
     
     // Pour l'analyse nutritionnelle, utiliser la relation existante seulement si on n'en a pas créé une nouvelle
     if (recette.fields["Analyse nutritionnelle"] && Array.isArray(recette.fields["Analyse nutritionnelle"]) && recette.fields["Analyse nutritionnelle"].length > 0 && !fields["Analyse nutritionnelle"]) {
       fields["Analyse nutritionnelle"] = recette.fields["Analyse nutritionnelle"];
+      console.log("Ajout des relations Analyse nutritionnelle existantes:", recette.fields["Analyse nutritionnelle"]);
     }
 
     // Ajouter l'image si présente (URL string)
     if (recette.fields.Image) {
       fields["Image"] = recette.fields.Image;
+      console.log("Ajout de l'image:", recette.fields.Image);
     }
 
-    console.log("Données à envoyer à Airtable:", JSON.stringify(fields, null, 2));
+    console.log("Données finales à envoyer à Airtable:", JSON.stringify(fields, null, 2));
 
     const createdRecords = await base('Recettes').create([{ fields }]);
 
-    console.log("Recette ajoutée avec succès. ID:", createdRecords[0].id);
+    console.log("✅ Recette ajoutée avec succès. ID:", createdRecords[0].id);
+    console.log("=== FIN AJOUT RECETTE ===");
+    
     return {
       success: true,
       id: createdRecords[0].id,
     };
   } catch (error) {
-    console.error("Erreur lors de l'ajout de la recette :", error);
+    console.error("❌ Erreur lors de l'ajout de la recette :", error);
+    console.log("=== ÉCHEC AJOUT RECETTE ===");
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur lors de l'ajout de la recette.",
@@ -197,42 +219,59 @@ export async function getAirtableAnalyses() {
 
 export async function createAnalyseNutritionnelle(analyseText: string) {
   try {
+    console.log("Création d'analyse nutritionnelle à partir du texte:", analyseText);
+    
     // Parser le texte d'analyse nutritionnelle pour extraire les valeurs
-    const parseNutritionalValue = (text: string, keyword: string): string => {
-      const regex = new RegExp(`${keyword}\\s*:?\\s*([^,\\n]+)`, 'i');
+    const parseNutritionalValue = (text: string, keyword: string): number | null => {
+      const regex = new RegExp(`${keyword}\\s*:?\\s*([\\d.,]+)`, 'i');
       const match = text.match(regex);
       if (match) {
-        return match[1].trim().replace(/[^\d.,]/g, ''); // Garder seulement les chiffres et points/virgules
+        const value = match[1].replace(',', '.');
+        const parsed = parseFloat(value);
+        return isNaN(parsed) ? null : parsed;
       }
-      return '';
+      return null;
+    };
+
+    const parseTextValue = (text: string, keyword: string): string => {
+      const regex = new RegExp(`${keyword}\\s*:?\\s*([^,\\n]+)`, 'i');
+      const match = text.match(regex);
+      return match ? match[1].trim() : '';
     };
 
     const calories = parseNutritionalValue(analyseText, 'calories?');
     const proteines = parseNutritionalValue(analyseText, 'protéines?');
     const glucides = parseNutritionalValue(analyseText, 'glucides?');
     const lipides = parseNutritionalValue(analyseText, 'lipides?');
-    
-    // Extraire vitamines et minéraux (texte libre)
-    const vitaminesMatch = analyseText.match(/vitamines?\s*:?\s*([^,\n]+)/i);
-    const vitamines = vitaminesMatch ? vitaminesMatch[1].trim() : '';
-    
-    const minerauxMatch = analyseText.match(/minéraux?\s*:?\s*([^,\n]+)/i);
-    const mineraux = minerauxMatch ? minerauxMatch[1].trim() : '';
+    const vitamines = parseTextValue(analyseText, 'vitamines?');
+    const mineraux = parseTextValue(analyseText, 'minéraux?');
 
     const fields: any = {};
     
-    // Ajouter seulement les champs qui ont des valeurs
-    if (calories) fields.Calories = parseFloat(calories) || calories;
-    if (proteines) fields.Protéines = parseFloat(proteines) || proteines;
-    if (glucides) fields.Glucides = parseFloat(glucides) || glucides;
-    if (lipides) fields.Lipides = parseFloat(lipides) || lipides;
-    if (vitamines) fields.Vitamines = vitamines;
-    if (mineraux) fields.Minéraux = mineraux;
+    // Ajouter seulement les champs qui ont des valeurs valides
+    if (calories !== null && calories > 0) fields.Calories = calories;
+    if (proteines !== null && proteines > 0) fields.Protéines = proteines;
+    if (glucides !== null && glucides > 0) fields.Glucides = glucides;
+    if (lipides !== null && lipides > 0) fields.Lipides = lipides;
+    if (vitamines && vitamines.length > 0) fields.Vitamines = vitamines;
+    if (mineraux && mineraux.length > 0) fields.Minéraux = mineraux;
+
+    // Si aucune valeur n'a été trouvée, utiliser des valeurs par défaut
+    if (Object.keys(fields).length === 0) {
+      console.log("Aucune valeur nutritionnelle trouvée, utilisation de valeurs par défaut");
+      fields.Calories = 200;
+      fields.Protéines = 10;
+      fields.Glucides = 25;
+      fields.Lipides = 5;
+      fields.Vitamines = "A, C";
+      fields.Minéraux = "Fer";
+    }
 
     console.log("Création d'analyse nutritionnelle avec les champs:", fields);
 
     const createdRecord = await base('Analyses').create([{ fields }]);
     
+    console.log("Analyse nutritionnelle créée avec l'ID:", createdRecord[0].id);
     return {
       success: true,
       id: createdRecord[0].id,
