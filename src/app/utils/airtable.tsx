@@ -97,9 +97,6 @@ export async function addAirtableRecette(recette: Recette) {
     console.log("=== DÉBUT SAUVEGARDE RECETTE ===");
     console.log("Données reçues:", JSON.stringify(recette, null, 2));
 
-    // Test de la structure Airtable (à supprimer après diagnostic)
-    await testAirtableStructure();
-
     // Créer d'abord la recette avec les champs de base
     const baseFields: any = {
       "Nom": recette.fields.Nom,
@@ -311,6 +308,8 @@ export async function findOrCreateAnalyse(analyseText: string, recetteName: stri
         
         if (!recettesArray.includes(recetteId)) {
           try {
+            console.log(`📝 Mise à jour liaison analyse - Recettes actuelles:`, recettesArray);
+            console.log(`📝 Ajout de la recette:`, recetteId);
             await base('Analyses').update(existingRecords[0].id, {
               Recettes: [...recettesArray, recetteId]
             });
@@ -401,6 +400,8 @@ export async function findOrCreateIngredient(nomIngredient: string, recetteId?: 
         // Ajouter la nouvelle recette si elle n'est pas déjà liée
         if (!recettesArray.includes(recetteId)) {
           try {
+            console.log(`📝 Mise à jour liaison ingrédient - Recettes actuelles:`, recettesArray);
+            console.log(`📝 Ajout de la recette:`, recetteId);
             await base('Ingrédients').update(existingRecords[0].id, {
               Recettes: [...recettesArray, recetteId]
             });
@@ -478,35 +479,5 @@ export async function processIngredientsFromAI(ingredientNames: string[], recett
       success: false,
       error: error instanceof Error ? error.message : "Erreur lors du traitement des ingrédients."
     };
-  }
-}
-
-export async function testAirtableStructure() {
-  try {
-    console.log("🔍 Test de la structure Airtable");
-    
-    // Test table Ingrédients
-    console.log("📋 Test table Ingrédients:");
-    const ingredientsTest = await base('Ingrédients').select({ maxRecords: 1 }).all();
-    if (ingredientsTest.length > 0) {
-      console.log("Champs disponibles dans Ingrédients:", Object.keys(ingredientsTest[0].fields));
-    }
-    
-    // Test table Analyses
-    console.log("📋 Test table Analyses:");
-    const analysesTest = await base('Analyses').select({ maxRecords: 1 }).all();
-    if (analysesTest.length > 0) {
-      console.log("Champs disponibles dans Analyses:", Object.keys(analysesTest[0].fields));
-    }
-    
-    // Test table Recettes
-    console.log("📋 Test table Recettes:");
-    const recettesTest = await base('Recettes').select({ maxRecords: 1 }).all();
-    if (recettesTest.length > 0) {
-      console.log("Champs disponibles dans Recettes:", Object.keys(recettesTest[0].fields));
-    }
-    
-  } catch (error) {
-    console.error("❌ Erreur lors du test de structure:", error);
   }
 }

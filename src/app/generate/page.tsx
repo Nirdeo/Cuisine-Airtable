@@ -154,38 +154,35 @@ export default function GenerateRecipe() {
     setError("");
 
     try {
-      const prompt = `Génère une recette de cuisine détaillée avec les contraintes suivantes :
-
-Ingrédients disponibles : ${formData.ingredients.map(id => {
+      const ingredientsDisponiblesNoms = formData.ingredients.map(id => {
         const ingredient = availableIngredients.find(i => i.id === id);
         return ingredient?.fields.Nom || 'Ingrédient non trouvé';
-      }).join(", ")}
-Nombre de personnes : ${formData.nombrePersonnes}
-Intolérances alimentaires : ${formData.intolerances || "Aucune"}
-Type de plat souhaité : ${formData.typePlat || "Libre"}
-Préférences culinaires : ${formData.preferences || "Aucune"}
+      }).filter(nom => nom !== 'Ingrédient non trouvé');
 
-IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide et COMPLET, sans texte avant ou après, sans backticks, sans markdown.
+      const prompt = `Tu es un chef cuisinier minimaliste. Crée une recette simple avec SEULEMENT ces ingrédients :
 
-Format JSON EXACT requis (RESPECTE EXACTEMENT cette structure) :
+INGRÉDIENTS AUTORISÉS (et AUCUN autre) : ${ingredientsDisponiblesNoms.join(", ")}
+
+Contraintes :
+- Nombre de personnes : ${formData.nombrePersonnes}
+- Type de plat : ${formData.typePlat || "Libre"}
+- Intolérances : ${formData.intolerances || "Aucune"}
+
+RÈGLE ABSOLUE : Tu ne peux utiliser QUE les ingrédients listés ci-dessus. Pas d'huile, pas de sel, pas d'épices, pas de fromage, RIEN d'autre.
+
+Crée une recette simple qui combine ces ingrédients de manière savoureuse.
+
+Réponds UNIQUEMENT avec ce JSON (sans backticks, sans texte supplémentaire) :
+
 {
-  "nom": "Nom de la recette",
-  "instructions": "Instructions détaillées étape par étape",
-  "ingredients": ["ingrédient 1", "ingrédient 2"],
-  "typePlat": "Type de plat",
-  "analyseNutritionnelle": "Calories: 350 kcal, Protéines: 15g, Glucides: 45g, Lipides: 12g, Vitamines: A, C, E, Minéraux: Fer, Calcium",
-  "tempsPreparation": "Temps de préparation",
+  "nom": "Nom simple de la recette",
+  "instructions": "Instructions simples utilisant SEULEMENT ${ingredientsDisponiblesNoms.join(' et ')}",
+  "ingredients": ${JSON.stringify(ingredientsDisponiblesNoms)},
+  "typePlat": "${formData.typePlat || "Plat principal"}",
+  "analyseNutritionnelle": "Calories: 250 kcal, Protéines: 12g, Glucides: 30g, Lipides: 8g, Vitamines: A, C, Minéraux: Fer, Potassium",
+  "tempsPreparation": "15 minutes",
   "difficulte": "Facile"
-}
-
-RÈGLES STRICTES:
-- Commence par { et termine par }
-- Utilise uniquement des guillemets droits (")
-- Chaque propriété doit être suivie d'une virgule SAUF la dernière
-- Évite les sauts de ligne dans les valeurs
-- L'analyseNutritionnelle DOIT contenir des valeurs numériques précises (Calories: XXX kcal, Protéines: XXg, etc.)
-- Assure-toi que le JSON est COMPLET et VALIDE
-- Ne coupe jamais le JSON au milieu`;
+}`;
 
       const response = await fetch('/api/ollama', {
         method: 'POST',
@@ -242,6 +239,42 @@ RÈGLES STRICTES:
         // Validation des champs requis
         if (!recipe.nom || !recipe.instructions || !recipe.ingredients) {
           throw new Error("Champs requis manquants dans la réponse de l'IA");
+        }
+
+        // Validation que l'IA n'a pas ajouté d'ingrédients supplémentaires
+        const ingredientsDisponibles = formData.ingredients.map(id => {
+          const ingredient = availableIngredients.find(i => i.id === id);
+          return ingredient?.fields.Nom || '';
+        }).filter(Boolean);
+
+        console.log("Ingrédients disponibles:", ingredientsDisponibles);
+        console.log("Ingrédients dans la recette IA:", recipe.ingredients);
+
+        // Vérifier que tous les ingrédients de la recette sont dans la liste disponible
+        const ingredientsNonAutorises = recipe.ingredients.filter((ing: string) => 
+          !ingredientsDisponibles.some((disp: string) => 
+            disp.toLowerCase().includes(ing.toLowerCase()) || 
+            ing.toLowerCase().includes(disp.toLowerCase())
+          )
+        );
+
+        if (ingredientsNonAutorises.length > 0) {
+          console.warn("⚠️ Ingrédients non autorisés détectés:", ingredientsNonAutorises);
+          // On continue quand même mais on log l'avertissement
+        }
+        
+        // Vérifier aussi dans les instructions
+        const motsClesInterdits = [
+          'huile', 'sel', 'poivre', 'épice', 'fromage', 'parmesan', 'mozzarella', 
+          'basilic', 'ail', 'oignon', 'beurre', 'crème', 'lait', 'œuf'
+        ];
+        
+        const instructionsLower = recipe.instructions.toLowerCase();
+        const motsTrouves = motsClesInterdits.filter(mot => instructionsLower.includes(mot));
+        
+        if (motsTrouves.length > 0) {
+          console.warn("⚠️ Ingrédients interdits trouvés dans les instructions:", motsTrouves);
+          // On pourrait ici modifier les instructions ou rejeter la recette
         }
         
         // S'assurer que analyseNutritionnelle est une chaîne
