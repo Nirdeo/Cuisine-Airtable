@@ -173,7 +173,7 @@ Format JSON EXACT requis (RESPECTE EXACTEMENT cette structure) :
   "instructions": "Instructions détaillées étape par étape",
   "ingredients": ["ingrédient 1", "ingrédient 2"],
   "typePlat": "Type de plat",
-  "analyseNutritionnelle": "Analyse nutritionnelle détaillée",
+  "analyseNutritionnelle": "Calories: 350 kcal, Protéines: 15g, Glucides: 45g, Lipides: 12g, Vitamines: A, C, E, Minéraux: Fer, Calcium",
   "tempsPreparation": "Temps de préparation",
   "difficulte": "Facile"
 }
@@ -183,7 +183,7 @@ RÈGLES STRICTES:
 - Utilise uniquement des guillemets droits (")
 - Chaque propriété doit être suivie d'une virgule SAUF la dernière
 - Évite les sauts de ligne dans les valeurs
-- L'analyseNutritionnelle doit être une chaîne de caractères simple
+- L'analyseNutritionnelle DOIT contenir des valeurs numériques précises (Calories: XXX kcal, Protéines: XXg, etc.)
 - Assure-toi que le JSON est COMPLET et VALIDE
 - Ne coupe jamais le JSON au milieu`;
 

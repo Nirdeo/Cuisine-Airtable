@@ -97,6 +97,9 @@ export async function addAirtableRecette(recette: Recette) {
     console.log("=== DÉBUT SAUVEGARDE RECETTE ===");
     console.log("Données reçues:", JSON.stringify(recette, null, 2));
 
+    // Test de la structure Airtable (à supprimer après diagnostic)
+    await testAirtableStructure();
+
     // Créer d'abord la recette avec les champs de base
     const baseFields: any = {
       "Nom": recette.fields.Nom,
@@ -155,11 +158,16 @@ export async function addAirtableRecette(recette: Recette) {
     // Traitement de l'analyse nutritionnelle
     if (recette.fields["Analyse nutritionnelle (texte)"]) {
       console.log("🔄 Traitement de l'analyse nutritionnelle:", recette.fields["Analyse nutritionnelle (texte)"]);
+      console.log("🏷️ Nom de la recette pour l'analyse:", recette.fields.Nom);
+      
+      // Vérifier que le nom de la recette n'est pas vide
+      const nomRecette = recette.fields.Nom && recette.fields.Nom.trim() !== "" ? recette.fields.Nom : "Recette générée";
+      console.log("🏷️ Nom de recette utilisé:", nomRecette);
       
       try {
         const analyseResult = await findOrCreateAnalyse(
           recette.fields["Analyse nutritionnelle (texte)"], 
-          recette.fields.Nom,
+          nomRecette,
           recetteId
         );
         console.log("Résultat du traitement de l'analyse:", analyseResult);
@@ -329,13 +337,24 @@ export async function findOrCreateAnalyse(analyseText: string, recetteName: stri
       Nom: nomAnalyse
     };
     
-    // Ajouter les valeurs nutritionnelles
+    // Ajouter les valeurs nutritionnelles si elles existent
     if (calories !== null) fields.Calories = calories;
     if (proteines !== null) fields.Protéines = proteines;
     if (glucides !== null) fields.Glucides = glucides;
     if (lipides !== null) fields.Lipides = lipides;
     if (vitamines) fields.Vitamines = vitamines;
     if (mineraux) fields.Minéraux = mineraux;
+
+    // Si aucune valeur numérique n'a été trouvée, utiliser des valeurs par défaut
+    if (calories === null && proteines === null && glucides === null && lipides === null) {
+      console.log("⚠️ Aucune valeur nutritionnelle numérique trouvée, utilisation de valeurs par défaut");
+      fields.Calories = 0;
+      fields.Protéines = 0;
+      fields.Glucides = 0;
+      fields.Lipides = 0;
+      fields.Vitamines = analyseText; // Utiliser le texte original pour les vitamines
+      fields.Minéraux = "Information basée sur l'analyse IA";
+    }
 
     // Ajouter la liaison avec la recette si fournie
     if (recetteId) {
@@ -459,5 +478,35 @@ export async function processIngredientsFromAI(ingredientNames: string[], recett
       success: false,
       error: error instanceof Error ? error.message : "Erreur lors du traitement des ingrédients."
     };
+  }
+}
+
+export async function testAirtableStructure() {
+  try {
+    console.log("🔍 Test de la structure Airtable");
+    
+    // Test table Ingrédients
+    console.log("📋 Test table Ingrédients:");
+    const ingredientsTest = await base('Ingrédients').select({ maxRecords: 1 }).all();
+    if (ingredientsTest.length > 0) {
+      console.log("Champs disponibles dans Ingrédients:", Object.keys(ingredientsTest[0].fields));
+    }
+    
+    // Test table Analyses
+    console.log("📋 Test table Analyses:");
+    const analysesTest = await base('Analyses').select({ maxRecords: 1 }).all();
+    if (analysesTest.length > 0) {
+      console.log("Champs disponibles dans Analyses:", Object.keys(analysesTest[0].fields));
+    }
+    
+    // Test table Recettes
+    console.log("📋 Test table Recettes:");
+    const recettesTest = await base('Recettes').select({ maxRecords: 1 }).all();
+    if (recettesTest.length > 0) {
+      console.log("Champs disponibles dans Recettes:", Object.keys(recettesTest[0].fields));
+    }
+    
+  } catch (error) {
+    console.error("❌ Erreur lors du test de structure:", error);
   }
 }
