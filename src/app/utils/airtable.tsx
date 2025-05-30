@@ -94,6 +94,9 @@ Minéraux: ${fields.Minéraux || 'N/A'}`;
 
 export async function addAirtableRecette(recette: Recette) {
   try {
+    console.log("=== DÉBUT SAUVEGARDE RECETTE ===");
+    console.log("Données reçues:", JSON.stringify(recette, null, 2));
+
     // Créer d'abord la recette avec les champs de base
     const baseFields: any = {
       "Nom": recette.fields.Nom,
@@ -114,61 +117,95 @@ export async function addAirtableRecette(recette: Recette) {
     const createdRecords = await base('Recettes').create([{ fields: baseFields }]);
     const recetteId = createdRecords[0].id;
     
-    console.log("Recette créée avec l'ID:", recetteId);
+    console.log("✅ Recette créée avec l'ID:", recetteId);
 
     const updateFields: any = {};
 
+    // Traitement des ingrédients générés par l'IA
     if (recette.fields["Ingrédients générés IA"] && Array.isArray(recette.fields["Ingrédients générés IA"])) {
-      console.log("Traitement des ingrédients générés par l'IA:", recette.fields["Ingrédients générés IA"]);
+      console.log("🔄 Traitement des ingrédients générés par l'IA:", recette.fields["Ingrédients générés IA"]);
       
-      const ingredientsResult = await processIngredientsFromAI(recette.fields["Ingrédients générés IA"], recetteId);
-      
-      if (ingredientsResult.success) {
-        updateFields["Ingrédients"] = ingredientsResult.ingredientIds;
+      try {
+        const ingredientsResult = await processIngredientsFromAI(recette.fields["Ingrédients générés IA"], recetteId);
+        console.log("Résultat du traitement des ingrédients:", ingredientsResult);
         
-        if (ingredientsResult.createdIngredients && ingredientsResult.createdIngredients.length > 0) {
-          console.log("Nouveaux ingrédients créés:", ingredientsResult.createdIngredients);
+        if (ingredientsResult.success && ingredientsResult.ingredientIds && ingredientsResult.ingredientIds.length > 0) {
+          updateFields["Ingrédients"] = ingredientsResult.ingredientIds;
+          console.log("✅ Ingrédients traités avec succès, IDs:", ingredientsResult.ingredientIds);
+          
+          if (ingredientsResult.createdIngredients && ingredientsResult.createdIngredients.length > 0) {
+            console.log("✅ Nouveaux ingrédients créés:", ingredientsResult.createdIngredients);
+          }
+        } else {
+          console.error("❌ Échec du traitement des ingrédients:", ingredientsResult);
         }
+      } catch (error) {
+        console.error("❌ Erreur lors du traitement des ingrédients:", error);
       }
+    } else {
+      console.log("⚠️ Aucun ingrédient généré par l'IA trouvé");
     }
 
     // Utiliser les ingrédients sélectionnés manuellement si pas d'ingrédients IA
     if (!updateFields["Ingrédients"] && recette.fields.Ingrédients && Array.isArray(recette.fields.Ingrédients) && recette.fields.Ingrédients.length > 0) {
       updateFields["Ingrédients"] = recette.fields.Ingrédients;
+      console.log("✅ Utilisation des ingrédients manuels:", recette.fields.Ingrédients);
     }
     
-    // Traiter l'analyse nutritionnelle
+    // Traitement de l'analyse nutritionnelle
     if (recette.fields["Analyse nutritionnelle (texte)"]) {
-      const analyseResult = await findOrCreateAnalyse(
-        recette.fields["Analyse nutritionnelle (texte)"], 
-        recette.fields.Nom,
-        recetteId
-      );
+      console.log("🔄 Traitement de l'analyse nutritionnelle:", recette.fields["Analyse nutritionnelle (texte)"]);
       
-      if (analyseResult.success && analyseResult.id) {
-        updateFields["Analyse nutritionnelle"] = [analyseResult.id];
-        console.log("Analyse nutritionnelle créée/trouvée avec l'ID:", analyseResult.id);
+      try {
+        const analyseResult = await findOrCreateAnalyse(
+          recette.fields["Analyse nutritionnelle (texte)"], 
+          recette.fields.Nom,
+          recetteId
+        );
+        console.log("Résultat du traitement de l'analyse:", analyseResult);
+        
+        if (analyseResult.success && analyseResult.id) {
+          updateFields["Analyse nutritionnelle"] = [analyseResult.id];
+          console.log("✅ Analyse nutritionnelle créée/trouvée avec l'ID:", analyseResult.id);
+        } else {
+          console.error("❌ Échec du traitement de l'analyse:", analyseResult);
+        }
+      } catch (error) {
+        console.error("❌ Erreur lors du traitement de l'analyse:", error);
       }
+    } else {
+      console.log("⚠️ Aucune analyse nutritionnelle trouvée");
     }
 
     // Utiliser l'analyse nutritionnelle existante si pas de nouvelle analyse
     if (!updateFields["Analyse nutritionnelle"] && recette.fields["Analyse nutritionnelle"] && Array.isArray(recette.fields["Analyse nutritionnelle"]) && recette.fields["Analyse nutritionnelle"].length > 0) {
       updateFields["Analyse nutritionnelle"] = recette.fields["Analyse nutritionnelle"];
+      console.log("✅ Utilisation de l'analyse manuelle:", recette.fields["Analyse nutritionnelle"]);
     }
 
     // Mettre à jour la recette avec les relations
     if (Object.keys(updateFields).length > 0) {
-      console.log("Mise à jour de la recette avec les relations:", JSON.stringify(updateFields, null, 2));
-      await base('Recettes').update(recetteId, updateFields);
+      console.log("🔄 Mise à jour de la recette avec les relations:", JSON.stringify(updateFields, null, 2));
+      try {
+        await base('Recettes').update(recetteId, updateFields);
+        console.log("✅ Recette mise à jour avec succès");
+      } catch (error) {
+        console.error("❌ Erreur lors de la mise à jour de la recette:", error);
+        throw error;
+      }
+    } else {
+      console.log("⚠️ Aucune relation à mettre à jour");
     }
 
-    console.log("Recette complètement sauvegardée avec l'ID:", recetteId);
+    console.log("✅ Recette complètement sauvegardée avec l'ID:", recetteId);
+    console.log("=== FIN SAUVEGARDE RECETTE ===");
+    
     return {
       success: true,
       id: recetteId,
     };
   } catch (error) {
-    console.error("Erreur lors de l'ajout de la recette :", error);
+    console.error("❌ Erreur lors de l'ajout de la recette :", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur lors de l'ajout de la recette.",
@@ -217,6 +254,9 @@ export async function getAirtableAnalyses() {
 
 export async function findOrCreateAnalyse(analyseText: string, recetteName: string, recetteId?: string) {
   try {
+    console.log(`🔍 Recherche/création de l'analyse nutritionnelle pour: "${recetteName}" (recette: ${recetteId})`);
+    console.log(`📝 Texte d'analyse à traiter:`, analyseText);
+    
     // Parser le texte d'analyse nutritionnelle pour extraire les valeurs
     const parseNutritionalValue = (text: string, keyword: string): number | null => {
       const regex = new RegExp(`${keyword}\\s*:?\\s*([\\d.,]+)`, 'i');
@@ -242,25 +282,36 @@ export async function findOrCreateAnalyse(analyseText: string, recetteName: stri
     const vitamines = parseTextValue(analyseText, 'vitamines?');
     const mineraux = parseTextValue(analyseText, 'minéraux?');
 
+    console.log(`📊 Valeurs parsées - Calories: ${calories}, Protéines: ${proteines}, Glucides: ${glucides}, Lipides: ${lipides}`);
+
     // Chercher si une analyse similaire existe déjà
     const nomAnalyse = `Analyse - ${recetteName}`;
+    console.log(`🔍 Recherche d'une analyse existante avec le nom: "${nomAnalyse}"`);
+    
     const existingRecords = await base('Analyses').select({
       filterByFormula: `{Nom} = "${nomAnalyse}"`
     }).all();
 
     if (existingRecords.length > 0) {
-      console.log(`Analyse "${nomAnalyse}" trouvée avec l'ID:`, existingRecords[0].id);
+      console.log(`✅ Analyse "${nomAnalyse}" trouvée avec l'ID:`, existingRecords[0].id);
       
       // Si on a un recetteId, mettre à jour la liaison
       if (recetteId) {
+        console.log(`🔄 Mise à jour de la liaison pour l'analyse "${nomAnalyse}"`);
         const currentRecettes = existingRecords[0].fields.Recettes || [];
         const recettesArray = Array.isArray(currentRecettes) ? currentRecettes : [currentRecettes];
         
         if (!recettesArray.includes(recetteId)) {
-          await base('Analyses').update(existingRecords[0].id, {
-            Recettes: [...recettesArray, recetteId]
-          });
-          console.log(`Liaison ajoutée entre l'analyse "${nomAnalyse}" et la recette ${recetteId}`);
+          try {
+            await base('Analyses').update(existingRecords[0].id, {
+              Recettes: [...recettesArray, recetteId]
+            });
+            console.log(`✅ Liaison ajoutée entre l'analyse "${nomAnalyse}" et la recette ${recetteId}`);
+          } catch (updateError) {
+            console.error(`❌ Erreur lors de la mise à jour de la liaison pour l'analyse:`, updateError);
+          }
+        } else {
+          console.log(`ℹ️ L'analyse "${nomAnalyse}" est déjà liée à la recette ${recetteId}`);
         }
       }
       
@@ -272,7 +323,7 @@ export async function findOrCreateAnalyse(analyseText: string, recetteName: stri
     }
 
     // Créer une nouvelle analyse
-    console.log(`Création de la nouvelle analyse: "${nomAnalyse}"`);
+    console.log(`🆕 Création de la nouvelle analyse: "${nomAnalyse}"`);
     const fields: any = {
       ID: Date.now(),
       Nom: nomAnalyse
@@ -289,18 +340,20 @@ export async function findOrCreateAnalyse(analyseText: string, recetteName: stri
     // Ajouter la liaison avec la recette si fournie
     if (recetteId) {
       fields.Recettes = [recetteId];
+      console.log(`🔗 Liaison directe avec la recette ${recetteId} lors de la création`);
     }
 
-    console.log("Création d'analyse nutritionnelle avec les champs:", fields);
+    console.log("📝 Champs pour la création de l'analyse nutritionnelle:", fields);
     const createdRecord = await base('Analyses').create([{ fields }]);
     
+    console.log(`✅ Nouvelle analyse "${nomAnalyse}" créée avec l'ID:`, createdRecord[0].id);
     return {
       success: true,
       id: createdRecord[0].id,
       created: true
     };
   } catch (error) {
-    console.error("Erreur lors de la création/recherche de l'analyse nutritionnelle:", error);
+    console.error("❌ Erreur lors de la création/recherche de l'analyse nutritionnelle:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur lors de la gestion de l'analyse nutritionnelle."
@@ -310,25 +363,34 @@ export async function findOrCreateAnalyse(analyseText: string, recetteName: stri
 
 export async function findOrCreateIngredient(nomIngredient: string, recetteId?: string) {
   try {
+    console.log(`🔍 Recherche/création de l'ingrédient: "${nomIngredient}" pour la recette: ${recetteId}`);
+    
     // Chercher d'abord si l'ingrédient existe déjà
     const existingRecords = await base('Ingrédients').select({
       filterByFormula: `{Nom} = "${nomIngredient}"`
     }).all();
 
     if (existingRecords.length > 0) {
-      console.log(`Ingrédient "${nomIngredient}" trouvé avec l'ID:`, existingRecords[0].id);
+      console.log(`✅ Ingrédient "${nomIngredient}" trouvé avec l'ID:`, existingRecords[0].id);
       
       // Si on a un recetteId et que l'ingrédient existe, mettre à jour la liaison
       if (recetteId) {
+        console.log(`🔄 Mise à jour de la liaison pour l'ingrédient "${nomIngredient}"`);
         const currentRecettes = existingRecords[0].fields.Recettes || [];
         const recettesArray = Array.isArray(currentRecettes) ? currentRecettes : [currentRecettes];
         
         // Ajouter la nouvelle recette si elle n'est pas déjà liée
         if (!recettesArray.includes(recetteId)) {
-          await base('Ingrédients').update(existingRecords[0].id, {
-            Recettes: [...recettesArray, recetteId]
-          });
-          console.log(`Liaison ajoutée entre l'ingrédient "${nomIngredient}" et la recette ${recetteId}`);
+          try {
+            await base('Ingrédients').update(existingRecords[0].id, {
+              Recettes: [...recettesArray, recetteId]
+            });
+            console.log(`✅ Liaison ajoutée entre l'ingrédient "${nomIngredient}" et la recette ${recetteId}`);
+          } catch (updateError) {
+            console.error(`❌ Erreur lors de la mise à jour de la liaison pour "${nomIngredient}":`, updateError);
+          }
+        } else {
+          console.log(`ℹ️ L'ingrédient "${nomIngredient}" est déjà lié à la recette ${recetteId}`);
         }
       }
       
@@ -340,7 +402,7 @@ export async function findOrCreateIngredient(nomIngredient: string, recetteId?: 
     }
 
     // Si l'ingrédient n'existe pas, le créer
-    console.log(`Création du nouvel ingrédient: "${nomIngredient}"`);
+    console.log(`🆕 Création du nouvel ingrédient: "${nomIngredient}"`);
     const fields: any = {
       Nom: nomIngredient,
       Quantité: 1,
@@ -350,18 +412,20 @@ export async function findOrCreateIngredient(nomIngredient: string, recetteId?: 
     // Ajouter la liaison avec la recette si fournie
     if (recetteId) {
       fields.Recettes = [recetteId];
+      console.log(`🔗 Liaison directe avec la recette ${recetteId} lors de la création`);
     }
     
+    console.log(`📝 Champs pour la création de l'ingrédient:`, fields);
     const newRecord = await base('Ingrédients').create([{ fields }]);
 
-    console.log(`Nouvel ingrédient "${nomIngredient}" créé avec l'ID:`, newRecord[0].id);
+    console.log(`✅ Nouvel ingrédient "${nomIngredient}" créé avec l'ID:`, newRecord[0].id);
     return {
       success: true,
       id: newRecord[0].id,
       created: true
     };
   } catch (error) {
-    console.error(`Erreur lors de la création/recherche de l'ingrédient "${nomIngredient}":`, error);
+    console.error(`❌ Erreur lors de la création/recherche de l'ingrédient "${nomIngredient}":`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur lors de la gestion de l'ingrédient."
