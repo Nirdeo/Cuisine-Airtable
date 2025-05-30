@@ -3,13 +3,14 @@ import Link from 'next/link';
 import { ArrowLeft, ChefHat, Users, Tag, Utensils, BarChart3 } from 'lucide-react';
 
 interface RecipePageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function RecipeDetailPage({ params }: RecipePageProps) {
-  const recette = await getAirtableRecetteById(params.id);
+  const { id } = await params;
+  const recette = await getAirtableRecetteById(id);
   const fields = recette.fields as any;
 
   const ingredients = Array.isArray(fields.Ingrédients) ? fields.Ingrédients : [];
