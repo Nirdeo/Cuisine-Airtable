@@ -182,17 +182,26 @@ Format JSON EXACT requis (RESPECTE EXACTEMENT cette structure) :
   "instructions": "Instructions détaillées étape par étape",
   "ingredients": ["ingrédient 1", "ingrédient 2"],
   "typePlat": "Type de plat",
-  "analyseNutritionnelle": "Analyse nutritionnelle détaillée",
+  "analyseNutritionnelle": "Calories: XXX kcal, Protéines: XXg, Glucides: XXg, Lipides: XXg, Vitamines: [liste des vitamines présentes], Minéraux: [liste des minéraux présents]",
   "tempsPreparation": "Temps de préparation",
   "difficulte": "Facile"
 }
 
-RÈGLES STRICTES:
+RÈGLES STRICTES POUR L'ANALYSE NUTRITIONNELLE:
+- Calcule les valeurs nutritionnelles RÉELLES basées sur les ingrédients utilisés
+- Calories: nombre entier entre 150-800 kcal selon le type de plat
+- Protéines: nombre entier en grammes (5-50g selon les ingrédients)
+- Glucides: nombre entier en grammes (10-100g selon les ingrédients)
+- Lipides: nombre entier en grammes (5-40g selon les ingrédients)
+- Vitamines: liste SEULEMENT les vitamines réellement présentes dans les ingrédients (A, B1, B2, B6, B12, C, D, E, K)
+- Minéraux: liste SEULEMENT les minéraux réellement présents dans les ingrédients (Fer, Calcium, Magnésium, Potassium, Zinc, Phosphore)
+- Format EXACT: "Calories: 350 kcal, Protéines: 25g, Glucides: 45g, Lipides: 12g, Vitamines: B6 C E, Minéraux: Fer Potassium Magnésium"
+
+AUTRES RÈGLES:
 - Commence par { et termine par }
 - Utilise uniquement des guillemets droits (")
 - Chaque propriété doit être suivie d'une virgule SAUF la dernière
 - Évite les sauts de ligne dans les valeurs
-- L'analyseNutritionnelle doit être une chaîne de caractères simple
 - Assure-toi que le JSON est COMPLET et VALIDE
 - Ne coupe jamais le JSON au milieu`;
 
