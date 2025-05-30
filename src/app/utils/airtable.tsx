@@ -263,7 +263,19 @@ export async function createAnalyseNutritionnelle(analyseText: string) {
 
     const defaults = generateRandomNutrition();
 
-    const fields: any = {};
+    // Générer un ID unique pour l'analyse
+    const generateAnalyseId = () => {
+      const timestamp = Date.now().toString(36); // Timestamp en base 36
+      const random = Math.random().toString(36).substr(2, 5); // 5 caractères aléatoires
+      return `AN_${timestamp}_${random}`.toUpperCase();
+    };
+
+    const analyseId = generateAnalyseId();
+
+    const fields: any = {
+      // Ajouter un ID personnalisé
+      ID: analyseId,
+    };
     
     // Utiliser les valeurs parsées ou les valeurs par défaut variées
     fields.Calories = calories ? parseFloat(calories) : defaults.calories;
@@ -277,11 +289,12 @@ export async function createAnalyseNutritionnelle(analyseText: string) {
 
     const createdRecord = await base('Analyses').create([{ fields }]);
     
-    console.log("✅ Analyse nutritionnelle créée avec l'ID:", createdRecord[0].id);
+    console.log("✅ Analyse nutritionnelle créée avec l'ID:", createdRecord[0].id, "et ID personnalisé:", analyseId);
     
     return {
       success: true,
       id: createdRecord[0].id,
+      customId: analyseId,
     };
   } catch (error) {
     console.error("❌ Erreur lors de la création de l'analyse nutritionnelle:", error);
