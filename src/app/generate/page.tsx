@@ -159,28 +159,21 @@ export default function GenerateRecipe() {
         return ingredient?.fields.Nom || 'Ingrédient non trouvé';
       }).filter(nom => nom !== 'Ingrédient non trouvé');
 
-      const prompt = `Tu es un chef cuisinier minimaliste. Crée une recette simple avec SEULEMENT ces ingrédients :
+      const prompt = `RÈGLE ABSOLUE : Tu ne peux utiliser QUE ces ingrédients : ${ingredientsDisponiblesNoms.join(", ")}
 
-INGRÉDIENTS AUTORISÉS (et AUCUN autre) : ${ingredientsDisponiblesNoms.join(", ")}
+Tu ne peux PAS utiliser : huile, sel, poivre, épices, fromage, beurre, ail, oignon, ou TOUT autre ingrédient.
 
-Contraintes :
-- Nombre de personnes : ${formData.nombrePersonnes}
-- Type de plat : ${formData.typePlat || "Libre"}
-- Intolérances : ${formData.intolerances || "Aucune"}
+Crée une recette simple pour ${formData.nombrePersonnes} personnes.
 
-RÈGLE ABSOLUE : Tu ne peux utiliser QUE les ingrédients listés ci-dessus. Pas d'huile, pas de sel, pas d'épices, pas de fromage, RIEN d'autre.
-
-Crée une recette simple qui combine ces ingrédients de manière savoureuse.
-
-Réponds UNIQUEMENT avec ce JSON (sans backticks, sans texte supplémentaire) :
+Réponds EXACTEMENT avec ce format JSON (sans rien d'autre) :
 
 {
-  "nom": "Nom simple de la recette",
-  "instructions": "Instructions simples utilisant SEULEMENT ${ingredientsDisponiblesNoms.join(' et ')}",
+  "nom": "Nom simple",
+  "instructions": "Cuire ${ingredientsDisponiblesNoms.join(' et ')} ensemble dans une casserole avec un peu d'eau pendant 15 minutes",
   "ingredients": ${JSON.stringify(ingredientsDisponiblesNoms)},
   "typePlat": "${formData.typePlat || "Plat principal"}",
-  "analyseNutritionnelle": "Calories: 250 kcal, Protéines: 12g, Glucides: 30g, Lipides: 8g, Vitamines: A, C, Minéraux: Fer, Potassium",
-  "tempsPreparation": "15 minutes",
+  "analyseNutritionnelle": "Calories: 200 kcal, Protéines: 10g, Glucides: 25g, Lipides: 5g, Vitamines: A, C, Minéraux: Fer",
+  "tempsPreparation": "20 minutes",
   "difficulte": "Facile"
 }`;
 
@@ -388,7 +381,7 @@ Réponds UNIQUEMENT avec ce JSON (sans backticks, sans texte supplémentaire) :
                     <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto mt-1">
                       {filteredIngredients.map((ingredient) => (
                         <div
-                          key={ingredient.id}
+                          key={`filtered-${ingredient.id}`}
                           className="px-4 py-2 hover:bg-orange-100 cursor-pointer border-b border-gray-100 last:border-b-0 text-gray-900"
                           onClick={() => addIngredient(ingredient)}
                         >
@@ -405,7 +398,7 @@ Réponds UNIQUEMENT avec ce JSON (sans backticks, sans texte supplémentaire) :
                     <div className="flex flex-wrap gap-2">
                       {selectedIngredients.map((ingredient) => (
                         <span
-                          key={ingredient.id}
+                          key={`selected-${ingredient.id}`}
                           className="inline-flex items-center px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"
                         >
                           {ingredient.fields.Nom}

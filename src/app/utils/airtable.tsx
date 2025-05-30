@@ -97,31 +97,30 @@ export async function addAirtableRecette(recette: Recette) {
     console.log("=== DÉBUT SAUVEGARDE RECETTE ===");
     console.log("Données reçues:", JSON.stringify(recette, null, 2));
 
-    // Créer d'abord la recette avec les champs de base
     const baseFields: any = {
-      "Nom": recette.fields.Nom,
+      "Nom": recette.fields.Nom || "Recette générée par IA",
       "Type de plat": recette.fields["Type de plat"],
       "Nombre de personnes": recette.fields["Nombre de personnes"],
       "Instructions": recette.fields.Instructions,
       "Intolérances": recette.fields.Intolérances,
     };
 
-    // Ajouter l'image si présente
     if (recette.fields.Image) {
       baseFields["Image"] = recette.fields.Image;
     }
 
     console.log("Création de la recette avec les champs de base:", JSON.stringify(baseFields, null, 2));
 
-    // Créer la recette d'abord pour obtenir son ID
     const createdRecords = await base('Recettes').create([{ fields: baseFields }]);
     const recetteId = createdRecords[0].id;
     
     console.log("✅ Recette créée avec l'ID:", recetteId);
+    console.log("✅ Nom de la recette créée:", baseFields["Nom"]);
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     const updateFields: any = {};
 
-    // Traitement des ingrédients générés par l'IA
     if (recette.fields["Ingrédients générés IA"] && Array.isArray(recette.fields["Ingrédients générés IA"])) {
       console.log("🔄 Traitement des ingrédients générés par l'IA:", recette.fields["Ingrédients générés IA"]);
       
@@ -146,18 +145,15 @@ export async function addAirtableRecette(recette: Recette) {
       console.log("⚠️ Aucun ingrédient généré par l'IA trouvé");
     }
 
-    // Utiliser les ingrédients sélectionnés manuellement si pas d'ingrédients IA
     if (!updateFields["Ingrédients"] && recette.fields.Ingrédients && Array.isArray(recette.fields.Ingrédients) && recette.fields.Ingrédients.length > 0) {
       updateFields["Ingrédients"] = recette.fields.Ingrédients;
       console.log("✅ Utilisation des ingrédients manuels:", recette.fields.Ingrédients);
     }
     
-    // Traitement de l'analyse nutritionnelle
     if (recette.fields["Analyse nutritionnelle (texte)"]) {
       console.log("🔄 Traitement de l'analyse nutritionnelle:", recette.fields["Analyse nutritionnelle (texte)"]);
       console.log("🏷️ Nom de la recette pour l'analyse:", recette.fields.Nom);
       
-      // Vérifier que le nom de la recette n'est pas vide
       const nomRecette = recette.fields.Nom && recette.fields.Nom.trim() !== "" ? recette.fields.Nom : "Recette générée";
       console.log("🏷️ Nom de recette utilisé:", nomRecette);
       
@@ -182,13 +178,11 @@ export async function addAirtableRecette(recette: Recette) {
       console.log("⚠️ Aucune analyse nutritionnelle trouvée");
     }
 
-    // Utiliser l'analyse nutritionnelle existante si pas de nouvelle analyse
     if (!updateFields["Analyse nutritionnelle"] && recette.fields["Analyse nutritionnelle"] && Array.isArray(recette.fields["Analyse nutritionnelle"]) && recette.fields["Analyse nutritionnelle"].length > 0) {
       updateFields["Analyse nutritionnelle"] = recette.fields["Analyse nutritionnelle"];
       console.log("✅ Utilisation de l'analyse manuelle:", recette.fields["Analyse nutritionnelle"]);
     }
 
-    // Mettre à jour la recette avec les relations
     if (Object.keys(updateFields).length > 0) {
       console.log("🔄 Mise à jour de la recette avec les relations:", JSON.stringify(updateFields, null, 2));
       try {
@@ -262,7 +256,6 @@ export async function findOrCreateAnalyse(analyseText: string, recetteName: stri
     console.log(`🔍 Recherche/création de l'analyse nutritionnelle pour: "${recetteName}" (recette: ${recetteId})`);
     console.log(`📝 Texte d'analyse à traiter:`, analyseText);
     
-    // Parser le texte d'analyse nutritionnelle pour extraire les valeurs
     const parseNutritionalValue = (text: string, keyword: string): number | null => {
       const regex = new RegExp(`${keyword}\\s*:?\\s*([\\d.,]+)`, 'i');
       const match = text.match(regex);
@@ -289,7 +282,6 @@ export async function findOrCreateAnalyse(analyseText: string, recetteName: stri
 
     console.log(`📊 Valeurs parsées - Calories: ${calories}, Protéines: ${proteines}, Glucides: ${glucides}, Lipides: ${lipides}`);
 
-    // Chercher si une analyse similaire existe déjà
     const nomAnalyse = `Analyse - ${recetteName}`;
     console.log(`🔍 Recherche d'une analyse existante avec le nom: "${nomAnalyse}"`);
     
@@ -300,7 +292,6 @@ export async function findOrCreateAnalyse(analyseText: string, recetteName: stri
     if (existingRecords.length > 0) {
       console.log(`✅ Analyse "${nomAnalyse}" trouvée avec l'ID:`, existingRecords[0].id);
       
-      // Si on a un recetteId, mettre à jour la liaison
       if (recetteId) {
         console.log(`🔄 Mise à jour de la liaison pour l'analyse "${nomAnalyse}"`);
         const currentRecettes = existingRecords[0].fields.Recettes || [];
@@ -329,33 +320,28 @@ export async function findOrCreateAnalyse(analyseText: string, recetteName: stri
       };
     }
 
-    // Créer une nouvelle analyse
     console.log(`🆕 Création de la nouvelle analyse: "${nomAnalyse}"`);
     const fields: any = {
-      ID: Date.now(),
       Nom: nomAnalyse
     };
     
-    // Ajouter les valeurs nutritionnelles si elles existent
-    if (calories !== null) fields.Calories = calories;
-    if (proteines !== null) fields.Protéines = proteines;
-    if (glucides !== null) fields.Glucides = glucides;
-    if (lipides !== null) fields.Lipides = lipides;
-    if (vitamines) fields.Vitamines = vitamines;
-    if (mineraux) fields.Minéraux = mineraux;
+    if (calories !== null && calories > 0) fields.Calories = calories;
+    if (proteines !== null && proteines > 0) fields.Protéines = proteines;
+    if (glucides !== null && glucides > 0) fields.Glucides = glucides;
+    if (lipides !== null && lipides > 0) fields.Lipides = lipides;
+    if (vitamines && vitamines.length > 0) fields.Vitamines = vitamines;
+    if (mineraux && mineraux.length > 0) fields.Minéraux = mineraux;
 
-    // Si aucune valeur numérique n'a été trouvée, utiliser des valeurs par défaut
-    if (calories === null && proteines === null && glucides === null && lipides === null) {
+    if (!fields.Calories && !fields.Protéines && !fields.Glucides && !fields.Lipides) {
       console.log("⚠️ Aucune valeur nutritionnelle numérique trouvée, utilisation de valeurs par défaut");
-      fields.Calories = 0;
-      fields.Protéines = 0;
-      fields.Glucides = 0;
-      fields.Lipides = 0;
-      fields.Vitamines = analyseText; // Utiliser le texte original pour les vitamines
+      fields.Calories = 200;
+      fields.Protéines = 10;
+      fields.Glucides = 25;
+      fields.Lipides = 5;
+      fields.Vitamines = analyseText;
       fields.Minéraux = "Information basée sur l'analyse IA";
     }
 
-    // Ajouter la liaison avec la recette si fournie
     if (recetteId) {
       fields.Recettes = [recetteId];
       console.log(`🔗 Liaison directe avec la recette ${recetteId} lors de la création`);
@@ -391,13 +377,11 @@ export async function findOrCreateIngredient(nomIngredient: string, recetteId?: 
     if (existingRecords.length > 0) {
       console.log(`✅ Ingrédient "${nomIngredient}" trouvé avec l'ID:`, existingRecords[0].id);
       
-      // Si on a un recetteId et que l'ingrédient existe, mettre à jour la liaison
       if (recetteId) {
         console.log(`🔄 Mise à jour de la liaison pour l'ingrédient "${nomIngredient}"`);
         const currentRecettes = existingRecords[0].fields.Recettes || [];
         const recettesArray = Array.isArray(currentRecettes) ? currentRecettes : [currentRecettes];
         
-        // Ajouter la nouvelle recette si elle n'est pas déjà liée
         if (!recettesArray.includes(recetteId)) {
           try {
             console.log(`📝 Mise à jour liaison ingrédient - Recettes actuelles:`, recettesArray);
@@ -429,7 +413,6 @@ export async function findOrCreateIngredient(nomIngredient: string, recetteId?: 
       Unité: "unité"
     };
     
-    // Ajouter la liaison avec la recette si fournie
     if (recetteId) {
       fields.Recettes = [recetteId];
       console.log(`🔗 Liaison directe avec la recette ${recetteId} lors de la création`);
