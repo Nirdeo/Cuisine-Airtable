@@ -8,7 +8,7 @@ import { ArrowRight, Search, Plus, ChefHat, Filter } from 'lucide-react';
 interface Recette {
   id: string;
   fields: {
-    Nom: string;
+    Nom?: string;
     'Type de plat'?: string;
     'Nombre de personnes'?: number;
     Instructions?: string;
@@ -66,7 +66,7 @@ export default function RecettesPage() {
     setFilteredRecettes(filtered);
   }, [searchTerm, selectedType, recettes]);
 
-  const uniqueTypes = [...new Set(recettes.map(r => r.fields['Type de plat']).filter(Boolean))];
+  const uniqueTypes = [...new Set((recettes || []).map(r => r.fields['Type de plat']).filter(Boolean))];
 
   if (loading) {
     return (
@@ -200,7 +200,7 @@ export default function RecettesPage() {
                   <div className="relative">
                     <img
                       src={recette.fields.Image || 'https://picsum.photos/400/300?random=1'}
-                      alt={recette.fields.Nom}
+                      alt={recette.fields.Nom || 'Recette'}
                       className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute top-3 right-3">
@@ -214,7 +214,7 @@ export default function RecettesPage() {
                   
                   <div className="p-4">
                     <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                      {recette.fields.Nom}
+                      {recette.fields.Nom || 'Recette sans nom'}
                     </h3>
                     
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
