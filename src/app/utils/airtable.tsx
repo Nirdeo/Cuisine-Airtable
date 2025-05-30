@@ -106,7 +106,6 @@ export async function addAirtableRecette(recette: Recette) {
       "Intolérances": recette.fields.Intolérances,
     };
 
-    // Utiliser les nouveaux champs texte pour ne pas casser les relations existantes
     if (recette.fields["Ingrédients (texte)"]) {
       fields["Ingrédients (texte)"] = recette.fields["Ingrédients (texte)"];
     }
@@ -114,25 +113,26 @@ export async function addAirtableRecette(recette: Recette) {
     if (recette.fields["Analyse nutritionnelle (texte)"]) {
       fields["Analyse nutritionnelle (texte)"] = recette.fields["Analyse nutritionnelle (texte)"];
       
-      // Créer automatiquement un enregistrement d'analyse nutritionnelle
+      console.log("🔬 Tentative de création d'analyse nutritionnelle...");
       const analyseResult = await createAnalyseNutritionnelle(recette.fields["Analyse nutritionnelle (texte)"]);
+      console.log("🔬 Résultat de création d'analyse:", analyseResult);
+      
       if (analyseResult.success && analyseResult.id) {
         fields["Analyse nutritionnelle"] = [analyseResult.id];
-        console.log("Analyse nutritionnelle créée avec l'ID:", analyseResult.id);
+        console.log("🔗 Relation ajoutée - Analyse nutritionnelle ID:", analyseResult.id);
+      } else {
+        console.log("❌ Échec de création d'analyse, pas de relation ajoutée");
       }
     }
 
-    // Garder la compatibilité avec les relations existantes si nécessaire
     if (recette.fields.Ingrédients && Array.isArray(recette.fields.Ingrédients) && recette.fields.Ingrédients.length > 0) {
       fields["Ingrédients"] = recette.fields.Ingrédients;
     }
     
-    // Pour l'analyse nutritionnelle, utiliser la relation existante seulement si on n'en a pas créé une nouvelle
     if (recette.fields["Analyse nutritionnelle"] && Array.isArray(recette.fields["Analyse nutritionnelle"]) && recette.fields["Analyse nutritionnelle"].length > 0 && !fields["Analyse nutritionnelle"]) {
       fields["Analyse nutritionnelle"] = recette.fields["Analyse nutritionnelle"];
     }
 
-    // Ajouter l'image si présente (URL string)
     if (recette.fields.Image) {
       fields["Image"] = recette.fields.Image;
     }
@@ -177,7 +177,6 @@ export async function getAirtableIngredients() {
 export async function getAirtableAnalyses() {
   const records = await base.table("Analyses").select().all();
   return records.map((analyse) => {
-    // Créer un nom descriptif basé sur les données nutritionnelles
     const calories = analyse.fields.Calories || 'N/A';
     const proteines = analyse.fields.Protéines || 'N/A';
     const glucides = analyse.fields.Glucides || 'N/A';
@@ -189,7 +188,7 @@ export async function getAirtableAnalyses() {
       id: analyse.id,
       fields: {
         ...analyse.fields,
-        Nom: nom, // Ajouter un nom descriptif
+        Nom: nom,
       },
     };
   });
@@ -199,23 +198,20 @@ export async function createAnalyseNutritionnelle(analyseText: string) {
   try {
     console.log("📊 Création d'analyse nutritionnelle à partir du texte:", analyseText);
 
-    // Parser le texte d'analyse nutritionnelle pour extraire les valeurs
     const parseNutritionalValue = (text: string, keyword: string): string => {
-      // Regex améliorée pour capturer les nombres avec unités
       const regex = new RegExp(`${keyword}\\s*:?\\s*([0-9]+(?:[.,][0-9]+)?)`, 'i');
       const match = text.match(regex);
       if (match) {
-        return match[1].replace(',', '.'); // Normaliser les décimales
+        return match[1].replace(',', '.');
       }
       return '';
     };
 
-    // Parser les vitamines et minéraux (listes de mots)
     const parseList = (text: string, keyword: string): string => {
       const regex = new RegExp(`${keyword}\\s*:?\\s*([^,\\n]+?)(?:,|\\n|$)`, 'i');
       const match = text.match(regex);
       if (match) {
-        return match[1].trim().replace(/[^A-Za-z0-9\s]/g, ''); // Garder seulement lettres, chiffres et espaces
+        return match[1].trim().replace(/[^A-Za-z0-9\s]/g, '');
       }
       return '';
     };
@@ -229,7 +225,6 @@ export async function createAnalyseNutritionnelle(analyseText: string) {
 
     console.log("🔍 Valeurs parsées:", { calories, proteines, glucides, lipides, vitamines, mineraux });
 
-    // Générer des valeurs par défaut variées et réalistes
     const generateRandomNutrition = () => {
       const caloriesDefault = Math.floor(Math.random() * (500 - 200) + 200); // 200-500 kcal
       const protDefault = Math.floor(Math.random() * (30 - 8) + 8); // 8-30g
@@ -239,13 +234,11 @@ export async function createAnalyseNutritionnelle(analyseText: string) {
       const vitaminesList = ['A', 'B1', 'B2', 'B6', 'B12', 'C', 'D', 'E', 'K'];
       const minerauxList = ['Fer', 'Calcium', 'Magnésium', 'Potassium', 'Zinc', 'Phosphore'];
       
-      // Sélectionner 2-4 vitamines aléatoires
       const selectedVitamines = vitaminesList
         .sort(() => 0.5 - Math.random())
         .slice(0, Math.floor(Math.random() * 3) + 2)
         .join(' ');
       
-      // Sélectionner 2-4 minéraux aléatoires
       const selectedMineraux = minerauxList
         .sort(() => 0.5 - Math.random())
         .slice(0, Math.floor(Math.random() * 3) + 2)
@@ -263,21 +256,8 @@ export async function createAnalyseNutritionnelle(analyseText: string) {
 
     const defaults = generateRandomNutrition();
 
-    // Générer un ID unique pour l'analyse
-    const generateAnalyseId = () => {
-      const timestamp = Date.now().toString(36); // Timestamp en base 36
-      const random = Math.random().toString(36).substr(2, 5); // 5 caractères aléatoires
-      return `AN_${timestamp}_${random}`.toUpperCase();
-    };
-
-    const analyseId = generateAnalyseId();
-
-    const fields: any = {
-      // Ajouter un ID personnalisé
-      ID: analyseId,
-    };
+    const fields: any = {};
     
-    // Utiliser les valeurs parsées ou les valeurs par défaut variées
     fields.Calories = calories ? parseFloat(calories) : defaults.calories;
     fields.Protéines = proteines ? parseFloat(proteines) : defaults.proteines;
     fields.Glucides = glucides ? parseFloat(glucides) : defaults.glucides;
@@ -289,12 +269,11 @@ export async function createAnalyseNutritionnelle(analyseText: string) {
 
     const createdRecord = await base('Analyses').create([{ fields }]);
     
-    console.log("✅ Analyse nutritionnelle créée avec l'ID:", createdRecord[0].id, "et ID personnalisé:", analyseId);
+    console.log("✅ Analyse nutritionnelle créée avec l'ID:", createdRecord[0].id);
     
     return {
       success: true,
       id: createdRecord[0].id,
-      customId: analyseId,
     };
   } catch (error) {
     console.error("❌ Erreur lors de la création de l'analyse nutritionnelle:", error);
