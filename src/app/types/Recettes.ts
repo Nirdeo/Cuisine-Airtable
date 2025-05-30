@@ -21,6 +21,7 @@ export type Recette = {
     Instructions?: string;
     Ingrédients?: string[]; // IDs des ingrédients (relations) - gardé pour compatibilité
     "Ingrédients (texte)"?: string; // Ingrédients en texte simple pour l'IA
+    "Ingrédients générés IA"?: string[]; // Ingrédients générés par l'IA (noms)
     "Analyse nutritionnelle"?: string[]; // IDs des analyses (relations) - gardé pour compatibilité
     "Analyse nutritionnelle (texte)"?: string; // Analyse en texte simple pour l'IA
     Intolérances?: string;

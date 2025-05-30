@@ -18,7 +18,6 @@ const base = new Airtable({
 export async function getAirtableRecettes() {
   const records = await base.table("Recettes").select().all();
   
-  // Résoudre les noms des ingrédients pour chaque recette
   const recettesWithIngredients = await Promise.all(
     records.map(async (recette) => {
       let ingredientNames: string[] = [];
@@ -56,7 +55,6 @@ export async function getAirtableRecetteById(id: string) {
   let ingredientNames: string[] = [];
   let analyseText = '';
 
-  // Résoudre les noms des ingrédients
   if (Array.isArray(recette.fields.Ingrédients)) {
     const ingredientRecords = await Promise.all(
       recette.fields.Ingrédients.map((ingredientId: string) =>
@@ -66,7 +64,6 @@ export async function getAirtableRecetteById(id: string) {
     ingredientNames = ingredientRecords.map((record) => record.fields.Nom as string);
   }
 
-  // Résoudre l'analyse nutritionnelle
   if (Array.isArray(recette.fields['Analyse nutritionnelle']) && recette.fields['Analyse nutritionnelle'].length > 0) {
     try {
       const analyseRecord = await base('Analyses').find(recette.fields['Analyse nutritionnelle'][0] as string);
@@ -81,7 +78,6 @@ Minéraux: ${fields.Minéraux || 'N/A'}`;
       console.error('Erreur lors de la résolution de l\'analyse nutritionnelle:', error);
     }
   } else if (recette.fields['Analyse nutritionnelle (texte)']) {
-    // Utiliser le champ texte comme fallback
     analyseText = recette.fields['Analyse nutritionnelle (texte)'] as string;
   }
 
@@ -106,7 +102,25 @@ export async function addAirtableRecette(recette: Recette) {
       "Intolérances": recette.fields.Intolérances,
     };
 
-    // Utiliser les nouveaux champs texte pour ne pas casser les relations existantes
+    if (recette.fields["Ingrédients générés IA"] && Array.isArray(recette.fields["Ingrédients générés IA"])) {
+      console.log("Traitement des ingrédients générés par l'IA:", recette.fields["Ingrédients générés IA"]);
+      
+      const ingredientsResult = await processIngredientsFromAI(recette.fields["Ingrédients générés IA"]);
+      
+      if (ingredientsResult.success) {
+        fields["Ingrédients"] = ingredientsResult.ingredientIds;
+        fields["Ingrédients (texte)"] = recette.fields["Ingrédients générés IA"].join(", ");
+        
+        if (ingredientsResult.createdIngredients && ingredientsResult.createdIngredients.length > 0) {
+          console.log("Nouveaux ingrédients créés:", ingredientsResult.createdIngredients);
+        }
+      }
+    }
+
+    if (!fields["Ingrédients"] && recette.fields.Ingrédients && Array.isArray(recette.fields.Ingrédients) && recette.fields.Ingrédients.length > 0) {
+      fields["Ingrédients"] = recette.fields.Ingrédients;
+    }
+
     if (recette.fields["Ingrédients (texte)"]) {
       fields["Ingrédients (texte)"] = recette.fields["Ingrédients (texte)"];
     }
@@ -115,24 +129,21 @@ export async function addAirtableRecette(recette: Recette) {
       fields["Analyse nutritionnelle (texte)"] = recette.fields["Analyse nutritionnelle (texte)"];
       
       // Créer automatiquement un enregistrement d'analyse nutritionnelle
-      const analyseResult = await createAnalyseNutritionnelle(recette.fields["Analyse nutritionnelle (texte)"]);
+      const analyseResult = await createAnalyseNutritionnelle(
+        recette.fields["Analyse nutritionnelle (texte)"], 
+        recette.fields.Nom
+      );
+      
       if (analyseResult.success && analyseResult.id) {
         fields["Analyse nutritionnelle"] = [analyseResult.id];
         console.log("Analyse nutritionnelle créée avec l'ID:", analyseResult.id);
       }
     }
 
-    // Garder la compatibilité avec les relations existantes si nécessaire
-    if (recette.fields.Ingrédients && Array.isArray(recette.fields.Ingrédients) && recette.fields.Ingrédients.length > 0) {
-      fields["Ingrédients"] = recette.fields.Ingrédients;
-    }
-    
-    // Pour l'analyse nutritionnelle, utiliser la relation existante seulement si on n'en a pas créé une nouvelle
     if (recette.fields["Analyse nutritionnelle"] && Array.isArray(recette.fields["Analyse nutritionnelle"]) && recette.fields["Analyse nutritionnelle"].length > 0 && !fields["Analyse nutritionnelle"]) {
       fields["Analyse nutritionnelle"] = recette.fields["Analyse nutritionnelle"];
     }
-
-    // Ajouter l'image si présente (URL string)
+// Ajouter l'image si présente (URL string)
     if (recette.fields.Image) {
       fields["Image"] = recette.fields.Image;
     }
@@ -177,7 +188,6 @@ export async function getAirtableIngredients() {
 export async function getAirtableAnalyses() {
   const records = await base.table("Analyses").select().all();
   return records.map((analyse) => {
-    // Créer un nom descriptif basé sur les données nutritionnelles
     const calories = analyse.fields.Calories || 'N/A';
     const proteines = analyse.fields.Protéines || 'N/A';
     const glucides = analyse.fields.Glucides || 'N/A';
@@ -189,22 +199,29 @@ export async function getAirtableAnalyses() {
       id: analyse.id,
       fields: {
         ...analyse.fields,
-        Nom: nom, // Ajouter un nom descriptif
+        Nom: nom,
       },
     };
   });
 }
 
-export async function createAnalyseNutritionnelle(analyseText: string) {
+export async function createAnalyseNutritionnelle(analyseText: string, recetteName: string = '') {
   try {
-    // Parser le texte d'analyse nutritionnelle pour extraire les valeurs
-    const parseNutritionalValue = (text: string, keyword: string): string => {
-      const regex = new RegExp(`${keyword}\\s*:?\\s*([^,\\n]+)`, 'i');
+    const parseNutritionalValue = (text: string, keyword: string): number | null => {
+      const regex = new RegExp(`${keyword}\\s*:?\\s*([\\d.,]+)`, 'i');
       const match = text.match(regex);
       if (match) {
-        return match[1].trim().replace(/[^\d.,]/g, ''); // Garder seulement les chiffres et points/virgules
+        const value = match[1].replace(',', '.');
+        const parsed = parseFloat(value);
+        return isNaN(parsed) ? null : parsed;
       }
-      return '';
+      return null;
+    };
+
+    const parseTextValue = (text: string, keyword: string): string => {
+      const regex = new RegExp(`${keyword}\\s*:?\\s*([^,\\n]+)`, 'i');
+      const match = text.match(regex);
+      return match ? match[1].trim() : '';
     };
 
     const calories = parseNutritionalValue(analyseText, 'calories?');
@@ -213,21 +230,25 @@ export async function createAnalyseNutritionnelle(analyseText: string) {
     const lipides = parseNutritionalValue(analyseText, 'lipides?');
     
     // Extraire vitamines et minéraux (texte libre)
-    const vitaminesMatch = analyseText.match(/vitamines?\s*:?\s*([^,\n]+)/i);
-    const vitamines = vitaminesMatch ? vitaminesMatch[1].trim() : '';
-    
-    const minerauxMatch = analyseText.match(/minéraux?\s*:?\s*([^,\n]+)/i);
-    const mineraux = minerauxMatch ? minerauxMatch[1].trim() : '';
+    const vitamines = parseTextValue(analyseText, 'vitamines?');
+    const mineraux = parseTextValue(analyseText, 'minéraux?');
 
-    const fields: any = {};
+    const fields: any = {
+      ID: Date.now(),
+    };
     
-    // Ajouter seulement les champs qui ont des valeurs
-    if (calories) fields.Calories = parseFloat(calories) || calories;
-    if (proteines) fields.Protéines = parseFloat(proteines) || proteines;
-    if (glucides) fields.Glucides = parseFloat(glucides) || glucides;
-    if (lipides) fields.Lipides = parseFloat(lipides) || lipides;
+    if (calories !== null) fields.Calories = calories;
+    if (proteines !== null) fields.Protéines = proteines;
+    if (glucides !== null) fields.Glucides = glucides;
+    if (lipides !== null) fields.Lipides = lipides;
     if (vitamines) fields.Vitamines = vitamines;
     if (mineraux) fields.Minéraux = mineraux;
+
+    const nom = recetteName ? 
+      `Analyse - ${recetteName}` : 
+      `${calories || 'N/A'} kcal - P:${proteines || 'N/A'}g G:${glucides || 'N/A'}g L:${lipides || 'N/A'}g`;
+    
+    if (nom) fields.Nom = nom;
 
     console.log("Création d'analyse nutritionnelle avec les champs:", fields);
 
@@ -236,12 +257,81 @@ export async function createAnalyseNutritionnelle(analyseText: string) {
     return {
       success: true,
       id: createdRecord[0].id,
+      fields: createdRecord[0].fields
     };
   } catch (error) {
     console.error("Erreur lors de la création de l'analyse nutritionnelle:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur lors de la création de l'analyse nutritionnelle.",
+    };
+  }
+}
+
+export async function findOrCreateIngredient(nomIngredient: string) {
+  try {
+    const existingRecords = await base('Ingrédients').select({
+      filterByFormula: `{Nom} = "${nomIngredient}"`
+    }).all();
+
+    if (existingRecords.length > 0) {
+      console.log(`Ingrédient "${nomIngredient}" trouvé avec l'ID:`, existingRecords[0].id);
+      return {
+        success: true,
+        id: existingRecords[0].id,
+        created: false
+      };
+    }
+
+    console.log(`Création du nouvel ingrédient: "${nomIngredient}"`);
+    const newRecord = await base('Ingrédients').create([{
+      fields: {
+        Nom: nomIngredient,
+        Quantité: 1,
+        Unité: "unité"
+      }
+    }]);
+
+    console.log(`Nouvel ingrédient "${nomIngredient}" créé avec l'ID:`, newRecord[0].id);
+    return {
+      success: true,
+      id: newRecord[0].id,
+      created: true
+    };
+  } catch (error) {
+    console.error(`Erreur lors de la création/recherche de l'ingrédient "${nomIngredient}":`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur lors de la gestion de l'ingrédient."
+    };
+  }
+}
+
+export async function processIngredientsFromAI(ingredientNames: string[]) {
+  try {
+    const ingredientIds: string[] = [];
+    const createdIngredients: string[] = [];
+
+    for (const nomIngredient of ingredientNames) {
+      const result = await findOrCreateIngredient(nomIngredient.trim());
+      if (result.success && result.id) {
+        ingredientIds.push(result.id);
+        if (result.created) {
+          createdIngredients.push(nomIngredient);
+        }
+      }
+    }
+
+    return {
+      success: true,
+      ingredientIds,
+      createdIngredients
+    };
+  } catch (error) {
+    console.error("Erreur lors du traitement des ingrédients:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur lors du traitement des ingrédients."
     };
   }
 }

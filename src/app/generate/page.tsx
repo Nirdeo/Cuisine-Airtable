@@ -277,7 +277,6 @@ RÈGLES STRICTES:
     if (!generatedRecipe) return;
 
     try {
-      // Convertir les données de l'IA en format Airtable
       const recetteData = {
         fields: {
           Nom: generatedRecipe.nom,
@@ -286,10 +285,8 @@ RÈGLES STRICTES:
           "Nombre de personnes": formData.nombrePersonnes,
           Intolérances: formData.intolerances || "",
           Image: `https://source.unsplash.com/800x600/?${encodeURIComponent(generatedRecipe.nom)},food`,
-          // Utiliser les IDs des ingrédients sélectionnés pour les relations
-          "Ingrédients": formData.ingredients,
-          // Utiliser les nouveaux champs texte pour l'affichage
-          "Ingrédients (texte)": selectedIngredients.map(i => i.fields.Nom).join(", "),
+          "Ingrédients générés IA": generatedRecipe.ingredients,
+          "Ingrédients (texte)": generatedRecipe.ingredients.join(", "),
           "Analyse nutritionnelle (texte)": formatAnalyseNutritionnelle(generatedRecipe.analyseNutritionnelle)
         }
       };
