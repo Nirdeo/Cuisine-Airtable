@@ -199,7 +199,7 @@ export default function RecettesPage() {
                 <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-2 transition-all duration-300 overflow-hidden">
                   <div className="relative">
                     <img
-                      src={recette.fields.Image || 'https://source.unsplash.com/400x300/?food'}
+                      src={recette.fields.Image || 'https://picsum.photos/400/300?random=1'}
                       alt={recette.fields.Nom}
                       className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                     />

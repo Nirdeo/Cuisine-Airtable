@@ -15,7 +15,7 @@ export default async function RecipeDetailPage({ params }: RecipePageProps) {
 
   const ingredients = Array.isArray(fields.Ingrédients) ? fields.Ingrédients : [];
   const analyse = typeof fields['Analyse nutritionnelle'] === 'string' ? fields['Analyse nutritionnelle'] : '';
-  const imageUrl = typeof fields.Image === 'string' ? fields.Image : 'https://unsplash.com/800x600/?food,recipe';
+  const imageUrl = typeof fields.Image === 'string' ? fields.Image : 'https://picsum.photos/800/600?random=2';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">

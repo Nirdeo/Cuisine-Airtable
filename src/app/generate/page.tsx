@@ -111,6 +111,19 @@ export default function GenerateRecipe() {
     !selectedIngredients.find(selected => selected.id === ingredient.id)
   );
 
+  // Fonction pour générer une URL d'image aléatoire pour la cuisine
+  const generateFoodImageUrl = (recipeName: string) => {
+    const imageServices = [
+      `https://picsum.photos/800/600?random=${Date.now()}`,
+      `https://picsum.photos/800/600?random=${Math.floor(Math.random() * 1000)}`,
+      `https://picsum.photos/id/${Math.floor(Math.random() * 100) + 1}/800/600`,
+    ];
+    
+    // Sélectionner un service aléatoire
+    const randomService = imageServices[Math.floor(Math.random() * imageServices.length)];
+    return randomService;
+  };
+
   const formatAnalyseNutritionnelle = (analyse: string | object): string => {
     if (typeof analyse === 'string') {
       return analyse;
@@ -294,7 +307,7 @@ AUTRES RÈGLES:
           "Type de plat": generatedRecipe.typePlat,
           "Nombre de personnes": formData.nombrePersonnes,
           Intolérances: formData.intolerances || "",
-          Image: `https://source.unsplash.com/800x600/?${encodeURIComponent(generatedRecipe.nom)},food`,
+          Image: generateFoodImageUrl(generatedRecipe.nom),
           // Utiliser les IDs des ingrédients sélectionnés pour les relations
           "Ingrédients": formData.ingredients,
           // Utiliser les nouveaux champs texte pour l'affichage
