@@ -24,7 +24,7 @@ interface Ingredient {
 
 export default function GenerateRecipe() {
   const [formData, setFormData] = useState({
-    ingredients: [] as string[], // Maintenant un array d'IDs
+    ingredients: [] as string[],
     nombrePersonnes: 4,
     intolerances: "",
     typePlat: "",
@@ -39,14 +39,12 @@ export default function GenerateRecipe() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  // Charger les ingrédients disponibles
   useEffect(() => {
     const loadIngredients = async () => {
       try {
         const response = await fetch('/api/ingredients');
         if (response.ok) {
           const ingredients = await response.json();
-          // Filtrer les ingrédients qui ont un nom valide
           const validIngredients = ingredients.filter((ingredient: Ingredient) => 
             ingredient.fields && ingredient.fields.Nom && ingredient.fields.Nom.trim() !== ''
           );
@@ -59,7 +57,6 @@ export default function GenerateRecipe() {
     loadIngredients();
   }, []);
 
-  // Fermer le dropdown quand on clique ailleurs
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -82,7 +79,6 @@ export default function GenerateRecipe() {
     }));
   };
 
-  // Gestion de la sélection d'ingrédients
   const addIngredient = (ingredient: Ingredient) => {
     if (!selectedIngredients.find(i => i.id === ingredient.id)) {
       const newSelected = [...selectedIngredients, ingredient];
@@ -105,7 +101,6 @@ export default function GenerateRecipe() {
     }));
   };
 
-  // Filtrer les ingrédients selon la recherche
   const filteredIngredients = availableIngredients.filter(ingredient => 
     ingredient.fields.Nom.toLowerCase().includes(ingredientSearch.toLowerCase()) &&
     !selectedIngredients.find(selected => selected.id === ingredient.id)
@@ -129,18 +124,14 @@ export default function GenerateRecipe() {
     try {
       let repaired = jsonString.trim();
       
-      // Nettoyer les caractères problématiques
       repaired = repaired.replace(/"\s*\n\s*"/g, '",\n"');
       repaired = repaired.replace(/]\s*\n\s*"/g, '],\n"');
       repaired = repaired.replace(/,(\s*})/g, '$1');
       
-      // Vérifier si le JSON se termine correctement
       if (!repaired.endsWith('}')) {
-        // Compter les accolades ouvrantes et fermantes
         const openBraces = (repaired.match(/\{/g) || []).length;
         const closeBraces = (repaired.match(/\}/g) || []).length;
         
-        // Ajouter les accolades fermantes manquantes
         const missingBraces = openBraces - closeBraces;
         for (let i = 0; i < missingBraces; i++) {
           repaired += '}';
@@ -226,15 +217,14 @@ RÈGLES STRICTES:
           jsonContent = jsonContent.replace(/```\s*/, '').replace(/```\s*$/, '');
         }
         
-        // Nettoyage supplémentaire pour les caractères problématiques
         jsonContent = jsonContent
-          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Supprimer les caractères de contrôle
-          .replace(/\n/g, '\\n') // Échapper les sauts de ligne
-          .replace(/\r/g, '\\r') // Échapper les retours chariot
-          .replace(/\t/g, '\\t') // Échapper les tabulations
-          .replace(/"/g, '"') // Remplacer les guillemets courbes par des droits
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r')
+          .replace(/\t/g, '\\t')
           .replace(/"/g, '"')
-          .replace(/'/g, "'") // Remplacer les apostrophes courbes
+          .replace(/"/g, '"')
+          .replace(/'/g, "'") 
           .replace(/'/g, "'");
         
         console.log("Contenu JSON nettoyé:", jsonContent);
@@ -286,7 +276,6 @@ RÈGLES STRICTES:
           Intolérances: formData.intolerances || "",
           Image: `https://source.unsplash.com/800x600/?${encodeURIComponent(generatedRecipe.nom)},food`,
           "Ingrédients générés IA": generatedRecipe.ingredients,
-          "Ingrédients (texte)": generatedRecipe.ingredients.join(", "),
           "Analyse nutritionnelle (texte)": formatAnalyseNutritionnelle(generatedRecipe.analyseNutritionnelle)
         }
       };
@@ -316,7 +305,6 @@ RÈGLES STRICTES:
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
@@ -343,7 +331,6 @@ RÈGLES STRICTES:
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Formulaire de génération */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Paramètres de génération</h2>
             
@@ -379,7 +366,6 @@ RÈGLES STRICTES:
                   )}
                 </div>
                 
-                {/* Affichage des ingrédients sélectionnés */}
                 {selectedIngredients.length > 0 && (
                   <div className="mt-3">
                     <p className="text-sm text-gray-600 mb-2">Ingrédients sélectionnés :</p>
