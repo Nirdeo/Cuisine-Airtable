@@ -24,7 +24,7 @@ interface Ingredient {
 
 export default function GenerateRecipe() {
   const [formData, setFormData] = useState({
-    ingredients: [] as string[], // Maintenant un array d'IDs
+    ingredients: [] as string[],
     nombrePersonnes: 4,
     intolerances: "",
     typePlat: "",
@@ -39,14 +39,12 @@ export default function GenerateRecipe() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  // Charger les ingrédients disponibles
   useEffect(() => {
     const loadIngredients = async () => {
       try {
         const response = await fetch('/api/ingredients');
         if (response.ok) {
           const ingredients = await response.json();
-          // Filtrer les ingrédients qui ont un nom valide
           const validIngredients = ingredients.filter((ingredient: Ingredient) => 
             ingredient.fields && ingredient.fields.Nom && ingredient.fields.Nom.trim() !== ''
           );
@@ -59,7 +57,6 @@ export default function GenerateRecipe() {
     loadIngredients();
   }, []);
 
-  // Fermer le dropdown quand on clique ailleurs
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -82,7 +79,6 @@ export default function GenerateRecipe() {
     }));
   };
 
-  // Gestion de la sélection d'ingrédients
   const addIngredient = (ingredient: Ingredient) => {
     if (!selectedIngredients.find(i => i.id === ingredient.id)) {
       const newSelected = [...selectedIngredients, ingredient];
@@ -105,7 +101,6 @@ export default function GenerateRecipe() {
     }));
   };
 
-  // Filtrer les ingrédients selon la recherche
   const filteredIngredients = availableIngredients.filter(ingredient => 
     ingredient.fields.Nom.toLowerCase().includes(ingredientSearch.toLowerCase()) &&
     !selectedIngredients.find(selected => selected.id === ingredient.id)
@@ -129,18 +124,14 @@ export default function GenerateRecipe() {
     try {
       let repaired = jsonString.trim();
       
-      // Nettoyer les caractères problématiques
       repaired = repaired.replace(/"\s*\n\s*"/g, '",\n"');
       repaired = repaired.replace(/]\s*\n\s*"/g, '],\n"');
       repaired = repaired.replace(/,(\s*})/g, '$1');
       
-      // Vérifier si le JSON se termine correctement
       if (!repaired.endsWith('}')) {
-        // Compter les accolades ouvrantes et fermantes
         const openBraces = (repaired.match(/\{/g) || []).length;
         const closeBraces = (repaired.match(/\}/g) || []).length;
         
-        // Ajouter les accolades fermantes manquantes
         const missingBraces = openBraces - closeBraces;
         for (let i = 0; i < missingBraces; i++) {
           repaired += '}';
@@ -163,38 +154,28 @@ export default function GenerateRecipe() {
     setError("");
 
     try {
-      const prompt = `Génère une recette de cuisine détaillée avec les contraintes suivantes :
-
-Ingrédients disponibles : ${formData.ingredients.map(id => {
+      const ingredientsDisponiblesNoms = formData.ingredients.map(id => {
         const ingredient = availableIngredients.find(i => i.id === id);
         return ingredient?.fields.Nom || 'Ingrédient non trouvé';
-      }).join(", ")}
-Nombre de personnes : ${formData.nombrePersonnes}
-Intolérances alimentaires : ${formData.intolerances || "Aucune"}
-Type de plat souhaité : ${formData.typePlat || "Libre"}
-Préférences culinaires : ${formData.preferences || "Aucune"}
+      }).filter(nom => nom !== 'Ingrédient non trouvé');
 
-IMPORTANT: Réponds UNIQUEMENT avec un objet JSON valide et COMPLET, sans texte avant ou après, sans backticks, sans markdown.
+      const prompt = `RÈGLE ABSOLUE : Tu ne peux utiliser QUE ces ingrédients : ${ingredientsDisponiblesNoms.join(", ")}
 
-Format JSON EXACT requis (RESPECTE EXACTEMENT cette structure) :
+Tu ne peux PAS utiliser : huile, sel, poivre, épices, fromage, beurre, ail, oignon, ou TOUT autre ingrédient.
+
+Crée une recette simple pour ${formData.nombrePersonnes} personnes.
+
+Réponds EXACTEMENT avec ce format JSON (sans rien d'autre) :
+
 {
-  "nom": "Nom de la recette",
-  "instructions": "Instructions détaillées étape par étape",
-  "ingredients": ["ingrédient 1", "ingrédient 2"],
-  "typePlat": "Type de plat",
-  "analyseNutritionnelle": "Analyse nutritionnelle détaillée",
-  "tempsPreparation": "Temps de préparation",
+  "nom": "Nom simple",
+  "instructions": "Cuire ${ingredientsDisponiblesNoms.join(' et ')} ensemble dans une casserole avec un peu d'eau pendant 15 minutes",
+  "ingredients": ${JSON.stringify(ingredientsDisponiblesNoms)},
+  "typePlat": "${formData.typePlat || "Plat principal"}",
+  "analyseNutritionnelle": "Calories: 200 kcal, Protéines: 10g, Glucides: 25g, Lipides: 5g, Vitamines: A, C, Minéraux: Fer",
+  "tempsPreparation": "20 minutes",
   "difficulte": "Facile"
-}
-
-RÈGLES STRICTES:
-- Commence par { et termine par }
-- Utilise uniquement des guillemets droits (")
-- Chaque propriété doit être suivie d'une virgule SAUF la dernière
-- Évite les sauts de ligne dans les valeurs
-- L'analyseNutritionnelle doit être une chaîne de caractères simple
-- Assure-toi que le JSON est COMPLET et VALIDE
-- Ne coupe jamais le JSON au milieu`;
+}`;
 
       const response = await fetch('/api/ollama', {
         method: 'POST',
@@ -226,15 +207,14 @@ RÈGLES STRICTES:
           jsonContent = jsonContent.replace(/```\s*/, '').replace(/```\s*$/, '');
         }
         
-        // Nettoyage supplémentaire pour les caractères problématiques
         jsonContent = jsonContent
-          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Supprimer les caractères de contrôle
-          .replace(/\n/g, '\\n') // Échapper les sauts de ligne
-          .replace(/\r/g, '\\r') // Échapper les retours chariot
-          .replace(/\t/g, '\\t') // Échapper les tabulations
-          .replace(/"/g, '"') // Remplacer les guillemets courbes par des droits
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r')
+          .replace(/\t/g, '\\t')
           .replace(/"/g, '"')
-          .replace(/'/g, "'") // Remplacer les apostrophes courbes
+          .replace(/"/g, '"')
+          .replace(/'/g, "'") 
           .replace(/'/g, "'");
         
         console.log("Contenu JSON nettoyé:", jsonContent);
@@ -252,6 +232,42 @@ RÈGLES STRICTES:
         // Validation des champs requis
         if (!recipe.nom || !recipe.instructions || !recipe.ingredients) {
           throw new Error("Champs requis manquants dans la réponse de l'IA");
+        }
+
+        // Validation que l'IA n'a pas ajouté d'ingrédients supplémentaires
+        const ingredientsDisponibles = formData.ingredients.map(id => {
+          const ingredient = availableIngredients.find(i => i.id === id);
+          return ingredient?.fields.Nom || '';
+        }).filter(Boolean);
+
+        console.log("Ingrédients disponibles:", ingredientsDisponibles);
+        console.log("Ingrédients dans la recette IA:", recipe.ingredients);
+
+        // Vérifier que tous les ingrédients de la recette sont dans la liste disponible
+        const ingredientsNonAutorises = recipe.ingredients.filter((ing: string) => 
+          !ingredientsDisponibles.some((disp: string) => 
+            disp.toLowerCase().includes(ing.toLowerCase()) || 
+            ing.toLowerCase().includes(disp.toLowerCase())
+          )
+        );
+
+        if (ingredientsNonAutorises.length > 0) {
+          console.warn("⚠️ Ingrédients non autorisés détectés:", ingredientsNonAutorises);
+          // On continue quand même mais on log l'avertissement
+        }
+        
+        // Vérifier aussi dans les instructions
+        const motsClesInterdits = [
+          'huile', 'sel', 'poivre', 'épice', 'fromage', 'parmesan', 'mozzarella', 
+          'basilic', 'ail', 'oignon', 'beurre', 'crème', 'lait', 'œuf'
+        ];
+        
+        const instructionsLower = recipe.instructions.toLowerCase();
+        const motsTrouves = motsClesInterdits.filter(mot => instructionsLower.includes(mot));
+        
+        if (motsTrouves.length > 0) {
+          console.warn("⚠️ Ingrédients interdits trouvés dans les instructions:", motsTrouves);
+          // On pourrait ici modifier les instructions ou rejeter la recette
         }
         
         // S'assurer que analyseNutritionnelle est une chaîne
@@ -277,7 +293,6 @@ RÈGLES STRICTES:
     if (!generatedRecipe) return;
 
     try {
-      // Convertir les données de l'IA en format Airtable
       const recetteData = {
         fields: {
           Nom: generatedRecipe.nom,
@@ -286,10 +301,7 @@ RÈGLES STRICTES:
           "Nombre de personnes": formData.nombrePersonnes,
           Intolérances: formData.intolerances || "",
           Image: `https://source.unsplash.com/800x600/?${encodeURIComponent(generatedRecipe.nom)},food`,
-          // Utiliser les IDs des ingrédients sélectionnés pour les relations
-          "Ingrédients": formData.ingredients,
-          // Utiliser les nouveaux champs texte pour l'affichage
-          "Ingrédients (texte)": selectedIngredients.map(i => i.fields.Nom).join(", "),
+          "Ingrédients générés IA": generatedRecipe.ingredients,
           "Analyse nutritionnelle (texte)": formatAnalyseNutritionnelle(generatedRecipe.analyseNutritionnelle)
         }
       };
@@ -319,7 +331,6 @@ RÈGLES STRICTES:
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
@@ -346,7 +357,6 @@ RÈGLES STRICTES:
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Formulaire de génération */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Paramètres de génération</h2>
             
@@ -371,7 +381,7 @@ RÈGLES STRICTES:
                     <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto mt-1">
                       {filteredIngredients.map((ingredient) => (
                         <div
-                          key={ingredient.id}
+                          key={`filtered-${ingredient.id}`}
                           className="px-4 py-2 hover:bg-orange-100 cursor-pointer border-b border-gray-100 last:border-b-0 text-gray-900"
                           onClick={() => addIngredient(ingredient)}
                         >
@@ -382,14 +392,13 @@ RÈGLES STRICTES:
                   )}
                 </div>
                 
-                {/* Affichage des ingrédients sélectionnés */}
                 {selectedIngredients.length > 0 && (
                   <div className="mt-3">
                     <p className="text-sm text-gray-600 mb-2">Ingrédients sélectionnés :</p>
                     <div className="flex flex-wrap gap-2">
                       {selectedIngredients.map((ingredient) => (
                         <span
-                          key={ingredient.id}
+                          key={`selected-${ingredient.id}`}
                           className="inline-flex items-center px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"
                         >
                           {ingredient.fields.Nom}

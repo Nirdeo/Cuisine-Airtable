@@ -19,11 +19,12 @@ export type Recette = {
     "Type de plat"?: string;
     "Nombre de personnes"?: number;
     Instructions?: string;
-    Ingrédients?: string[]; // IDs des ingrédients (relations) - gardé pour compatibilité
-    "Ingrédients (texte)"?: string; // Ingrédients en texte simple pour l'IA
-    "Analyse nutritionnelle"?: string[]; // IDs des analyses (relations) - gardé pour compatibilité
-    "Analyse nutritionnelle (texte)"?: string; // Analyse en texte simple pour l'IA
+    Ingrédients?: string[];
+    "Ingrédients (texte)"?: string;
+    "Ingrédients générés IA"?: string[];
+    "Analyse nutritionnelle"?: string[];
+    "Analyse nutritionnelle (texte)"?: string;
     Intolérances?: string;
-    Image?: string; // URL de l'image (string, pas attachment)
+    Image?: string;
   };
 };
