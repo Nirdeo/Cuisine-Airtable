@@ -14,29 +14,11 @@ services:
       - /app/.next
     environment:
       - NODE_ENV=development
-      - OLLAMA_HOST=http://ollama:11434
+      - MODEL_RUNNER_HOST=http://model-runner.docker.internal
+      - MODEL_RUNNER_PORT=12434
     networks:
       - appnet
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    networks:
-      - appnet
-    volumes:
-      - ollama-data:/root/.ollama
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
 networks:
   appnet:
     driver: bridge
-
-volumes:
-  ollama-data:

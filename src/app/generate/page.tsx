@@ -266,7 +266,7 @@ AUTRES RÈGLES:
         },
         body: JSON.stringify({
           prompt,
-          model: "llama3.2",
+          model: "ai/llama3.2",
           options: {
             temperature: 0.7,
           },
@@ -347,7 +347,7 @@ AUTRES RÈGLES:
     } catch (error) {
       console.error("Erreur:", error);
       setError(
-        "Erreur lors de la génération de la recette. Vérifiez que Ollama est en cours d'exécution."
+        "Erreur lors de la génération de la recette. Vérifiez que Docker Model Runner est en cours d'exécution."
       );
     } finally {
       setIsGenerating(false);

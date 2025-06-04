@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateResponse, listModels } from '@/utils/ollama';
+import { generateResponse, listModels } from '@/utils/docker-model-runner';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prompt, model = 'llama3.2', options = {} } = body;
+    const { prompt, model = 'ai/llama3.2', options = {} } = body;
 
     if (!prompt) {
       return NextResponse.json(
@@ -16,9 +16,9 @@ export async function POST(request: NextRequest) {
     const response = await generateResponse(prompt, model, options);
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Error in Ollama API route:', error);
+    console.error('Erreur dans la route API Docker Model Runner:', error);
     return NextResponse.json(
-      { error: 'Failed to generate response' },
+      { error: 'Échec de la génération de réponse avec Docker Model Runner' },
       { status: 500 }
     );
   }
@@ -29,9 +29,9 @@ export async function GET() {
     const models = await listModels();
     return NextResponse.json(models);
   } catch (error) {
-    console.error('Error listing models:', error);
+    console.error('Erreur lors de la liste des modèles:', error);
     return NextResponse.json(
-      { error: 'Failed to list models' },
+      { error: 'Échec de la récupération de la liste des modèles' },
       { status: 500 }
     );
   }

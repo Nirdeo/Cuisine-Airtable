@@ -6,6 +6,7 @@ Ce projet inclut deux configurations Docker : une pour le développement et une 
 
 #### Prérequis
 - [Docker](https://www.docker.com/) et [Docker Compose](https://docs.docker.com/compose/) installés
+- Docker Desktop 4.41+ (Windows) ou 4.40+ (MacOS) avec Docker Model Runner activé
 - Node.js version utilisée : `22.13.1-slim`
 
 #### Variables d'Environnement
@@ -14,8 +15,24 @@ Créez un fichier `.env.local` avec :
 AIRTABLE_KEY=votre_clé_api_airtable
 AIRTABLE_BASE=votre_id_base_airtable
 JWT_SECRET=votre_secret_jwt
-OLLAMA_HOST=http://ollama:11434  # Pour l'intégration avec Ollama
+MODEL_RUNNER_HOST=http://model-runner.docker.internal  # Pour Docker Model Runner
+MODEL_RUNNER_PORT=12434
 ```
+
+#### Configuration Docker Model Runner
+Avant de lancer l'application, assurez-vous que Docker Model Runner est activé :
+
+1. **Dans Docker Desktop** :
+   - Ouvrir Docker Desktop
+   - Aller dans Settings → Features in development → Beta tab
+   - Cocher "Enable Docker Model Runner"
+   - Si vous êtes sur Windows avec GPU NVIDIA, cocher aussi "Enable GPU-backed inference"
+   - Appliquer et redémarrer
+
+2. **Télécharger le modèle par défaut** (équivalent au modèle Ollama précédent) :
+   ```bash
+   docker model run ai/llama3.2
+   ```
 
 #### Lancement en Développement
 1. Pour le premier lancement ou après des modifications du Dockerfile.dev/package.json :
@@ -47,13 +64,13 @@ OLLAMA_HOST=http://ollama:11434  # Pour l'intégration avec Ollama
 
 L'application sera disponible sur :
    - Next.js : [http://localhost:3000](http://localhost:3000)
-   - Ollama : [http://localhost:11434](http://localhost:11434)
+   - Docker Model Runner API : [http://localhost:12434](http://localhost:12434)
 
 #### Fonctionnalités de Développement
 - Hot-reloading activé
 - Volumes montés pour le code source
 - Node modules persistants
-- Intégration avec Ollama pour l'IA
+- Intégration avec Docker Model Runner pour l'IA
 - Mode développement de Next.js
 
 #### Structure Docker
@@ -64,17 +81,16 @@ L'application sera disponible sur :
 
 - **compose.yaml** : Configure l'environnement avec :
   - Service `nextjs-dev` pour l'application
-  - Service `ollama` pour l'IA
+  - Configuration pour Docker Model Runner
   - Volumes montés pour :
     - Code source : `.:/app`
     - Node modules : `/app/node_modules`
     - Build Next.js : `/app/.next`
   - Réseau `appnet` pour la communication inter-services
-  - Volume persistant pour les modèles Ollama
 
 #### Ports Exposés
 - Application Next.js : **3000** (mapping `3000:3000`)
-- API Ollama : **11434** (mapping `11434:11434`)
+- API Docker Model Runner : **12434** (géré par Docker Desktop)
 
 #### Commandes Docker via npm
 
@@ -116,13 +132,29 @@ docker compose build
 docker compose restart nextjs-dev
 ```
 
+#### Commandes Docker Model Runner
+```bash
+# Lister les modèles disponibles
+docker model ls
+
+# Télécharger et exécuter le modèle par défaut
+docker model run ai/llama3.2
+
+# Supprimer un modèle
+docker model rm ai/llama3.2
+
+# Vérifier la version
+docker model version
+```
+
 ### Avantages de cette Configuration
 - Environnement de développement isolé et reproductible
 - Rechargement automatique des modifications
-- Intégration native avec Ollama
-- Persistance des données et des modèles
+- Intégration native avec Docker Model Runner
+- API OpenAI compatible
 - Pas besoin d'installer Node.js localement
 - Raccourcis npm pour faciliter l'utilisation de Docker
+- Gestion optimisée des ressources (modèles chargés à la demande)
 
 ## Informations Supplémentaires
 
