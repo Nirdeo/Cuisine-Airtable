@@ -181,22 +181,38 @@ export default function GenerateRecipe() {
     try {
       let repaired = jsonString.trim();
 
-      // Nettoyer les caractères problématiques
-      repaired = repaired.replace(/"\s*\n\s*"/g, '",\n"');
-      repaired = repaired.replace(/]\s*\n\s*"/g, '],\n"');
-      repaired = repaired.replace(/,(\s*})/g, "$1");
+      // Utiliser des regex pour nettoyer et réparer le JSON
+      repaired = repaired
+        // Corriger les séparateurs entre propriétés
+        .replace(/"\s*[\n\r]+\s*"/g, '", "')
+        .replace(/]\s*[\n\r]+\s*"/g, '], "')
+        .replace(/}\s*[\n\r]+\s*"/g, '}, "')
+        // Supprimer les virgules avant les accolades/crochets fermants
+        .replace(/,(\s*[}\]])/g, "$1")
+        // Ajouter des virgules manquantes entre les propriétés
+        .replace(/("\s*:\s*"[^"]*")\s*(["\w])/g, '$1, $2')
+        .replace(/("\s*:\s*\[[^\]]*\])\s*(["\w])/g, '$1, $2')
+        .replace(/("\s*:\s*\{[^}]*\})\s*(["\w])/g, '$1, $2')
+        // Corriger les guillemets non fermés
+        .replace(/([^\\])\\"/g, '$1"')
+        // Supprimer les caractères en fin qui ne devraient pas être là
+        .replace(/[,\s]+$/, "");
 
-      // Vérifier si le JSON se termine correctement
-      if (!repaired.endsWith("}")) {
-        // Compter les accolades ouvrantes et fermantes
-        const openBraces = (repaired.match(/\{/g) || []).length;
-        const closeBraces = (repaired.match(/\}/g) || []).length;
+      // Vérifier et équilibrer les accolades/crochets
+      const openBraces = (repaired.match(/\{/g) || []).length;
+      const closeBraces = (repaired.match(/\}/g) || []).length;
+      const openBrackets = (repaired.match(/\[/g) || []).length;
+      const closeBrackets = (repaired.match(/\]/g) || []).length;
 
-        // Ajouter les accolades fermantes manquantes
-        const missingBraces = openBraces - closeBraces;
-        for (let i = 0; i < missingBraces; i++) {
-          repaired += "}";
-        }
+      // Ajouter les accolades/crochets fermants manquants
+      const missingBraces = openBraces - closeBraces;
+      const missingBrackets = openBrackets - closeBrackets;
+
+      for (let i = 0; i < missingBrackets; i++) {
+        repaired += "]";
+      }
+      for (let i = 0; i < missingBraces; i++) {
+        repaired += "}";
       }
 
       return repaired;
@@ -259,14 +275,14 @@ AUTRES RÈGLES:
 - Assure-toi que le JSON est COMPLET et VALIDE
 - Ne coupe jamais le JSON au milieu`;
 
-      const response = await fetch("/api/ollama", {
+      const response = await fetch("/api/models", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           prompt,
-          model: "ai/llama3.2",
+          model: "ai/llama3.2:latest",
           options: {
             temperature: 0.7,
           },
@@ -283,26 +299,21 @@ AUTRES RÈGLES:
       try {
         let jsonContent = content.trim();
 
-        if (jsonContent.startsWith("```json")) {
-          jsonContent = jsonContent
-            .replace(/```json\s*/, "")
-            .replace(/```\s*$/, "");
-        } else if (jsonContent.startsWith("```")) {
-          jsonContent = jsonContent
-            .replace(/```\s*/, "")
-            .replace(/```\s*$/, "");
-        }
+        // Supprimer les blocs de code markdown avec regex
+        jsonContent = jsonContent.replace(/^```(?:json)?\s*|\s*```$/gm, "");
 
-        // Nettoyage supplémentaire pour les caractères problématiques
+        // Nettoyage avec regex pour les caractères problématiques
         jsonContent = jsonContent
           .replace(/[\u0000-\u001F\u007F-\u009F]/g, "") // Supprimer les caractères de contrôle
-          .replace(/\n/g, "\\n") // Échapper les sauts de ligne
-          .replace(/\r/g, "\\r") // Échapper les retours chariot
-          .replace(/\t/g, "\\t") // Échapper les tabulations
-          .replace(/"/g, '"') // Remplacer les guillemets courbes par des droits
-          .replace(/"/g, '"')
-          .replace(/'/g, "'") // Remplacer les apostrophes courbes
-          .replace(/'/g, "'");
+          .replace(/(?<!\\)\n/g, "\\n") // Échapper les sauts de ligne non échappés
+          .replace(/(?<!\\)\r/g, "\\r") // Échapper les retours chariot non échappés
+          .replace(/(?<!\\)\t/g, "\\t") // Échapper les tabulations non échappées
+          .replace(/[""]/g, '"') // Remplacer les guillemets courbes par des droits
+          .replace(/['']/g, "'") // Remplacer les apostrophes courbes par des droites
+          .replace(/,(\s*[}\]])/g, "$1") // Supprimer les virgules avant } ou ]
+          .replace(/([}\]])\s*([,\s]*)\s*(["\w])/g, "$1,$3") // Ajouter des virgules manquantes
+          .replace(/"\s*\n\s*"/g, '", "') // Corriger les guillemets séparés par des sauts de ligne
+          .replace(/]\s*\n\s*"/g, '], "'); // Corriger les arrays suivis de propriétés
 
         console.log("Contenu JSON nettoyé:", jsonContent);
 
@@ -347,7 +358,7 @@ AUTRES RÈGLES:
     } catch (error) {
       console.error("Erreur:", error);
       setError(
-        "Erreur lors de la génération de la recette. Vérifiez que Docker Model Runner est en cours d'exécution."
+        "Erreur lors de la génération de la recette. Vérifiez que Docker Model Runner est activé et que le modèle llama3.2 est disponible."
       );
     } finally {
       setIsGenerating(false);

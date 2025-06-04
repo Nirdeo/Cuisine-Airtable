@@ -4,7 +4,7 @@ import { generateResponse, listModels } from '@/utils/docker-model-runner';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prompt, model = 'ai/llama3.2', options = {} } = body;
+    const { prompt, model = 'ai/llama3.2:latest', options = {} } = body;
 
     if (!prompt) {
       return NextResponse.json(
@@ -16,9 +16,9 @@ export async function POST(request: NextRequest) {
     const response = await generateResponse(prompt, model, options);
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Erreur dans la route API Docker Model Runner:', error);
+    console.error('Error in Docker Model Runner API route:', error);
     return NextResponse.json(
-      { error: 'Échec de la génération de réponse avec Docker Model Runner' },
+      { error: 'Failed to generate response' },
       { status: 500 }
     );
   }
@@ -29,9 +29,9 @@ export async function GET() {
     const models = await listModels();
     return NextResponse.json(models);
   } catch (error) {
-    console.error('Erreur lors de la liste des modèles:', error);
+    console.error('Error listing models:', error);
     return NextResponse.json(
-      { error: 'Échec de la récupération de la liste des modèles' },
+      { error: 'Failed to list models' },
       { status: 500 }
     );
   }
