@@ -14,10 +14,18 @@ services:
       - /app/.next
     environment:
       - NODE_ENV=development
-      - MODEL_RUNNER_HOST=http://model-runner.docker.internal
-      - MODEL_RUNNER_PORT=12434
+      - DMR_HOST=http://model-runner.docker.internal
+      - DMR_MODEL=ai/llama3.2:latest
     networks:
       - appnet
+    depends_on:
+      - ai_runner
+
+  ai_runner:
+    provider:
+      type: model
+      options:
+        model: ai/llama3.2:latest
 
 networks:
   appnet:

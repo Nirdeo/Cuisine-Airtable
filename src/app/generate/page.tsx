@@ -259,14 +259,14 @@ AUTRES RÈGLES:
 - Assure-toi que le JSON est COMPLET et VALIDE
 - Ne coupe jamais le JSON au milieu`;
 
-      const response = await fetch("/api/ollama", {
+      const response = await fetch("/api/models", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           prompt,
-          model: "ai/llama3.2",
+          model: "ai/llama3.2:latest",
           options: {
             temperature: 0.7,
           },
@@ -347,7 +347,7 @@ AUTRES RÈGLES:
     } catch (error) {
       console.error("Erreur:", error);
       setError(
-        "Erreur lors de la génération de la recette. Vérifiez que Docker Model Runner est en cours d'exécution."
+        "Erreur lors de la génération de la recette. Vérifiez que Docker Model Runner est activé et que le modèle llama3.2 est disponible."
       );
     } finally {
       setIsGenerating(false);

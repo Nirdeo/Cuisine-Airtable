@@ -7,19 +7,19 @@ interface ChatMessage {
   content: string;
 }
 
-export default function OllamaChat() {
+export default function ModelRunnerChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [models, setModels] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] = useState('llama3.2');
+  const [selectedModel, setSelectedModel] = useState('ai/llama3.2:latest');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch available models on component mount
   useEffect(() => {
     async function fetchModels() {
       try {
-        const response = await fetch('/api/ollama');
+        const response = await fetch('/api/models');
         if (!response.ok) throw new Error('Failed to fetch models');
 
         const data = await response.json();
@@ -31,6 +31,8 @@ export default function OllamaChat() {
         }
       } catch (error) {
         console.error('Error fetching models:', error);
+        // Fallback aux modèles par défaut si l'API échoue
+        setModels(['ai/llama3.2:latest', 'ai/smollm2:latest']);
       }
     }
 
@@ -54,7 +56,7 @@ export default function OllamaChat() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/ollama', {
+      const response = await fetch('/api/models', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -84,7 +86,7 @@ export default function OllamaChat() {
       // Add error message to chat
       setMessages(prev => [
         ...prev,
-        { role: 'assistant', content: 'Error: Failed to generate response' },
+        { role: 'assistant', content: 'Erreur: Impossible de générer une réponse. Vérifiez que Docker Model Runner est activé et que le modèle est disponible.' },
       ]);
     } finally {
       setIsLoading(false);
@@ -95,7 +97,7 @@ export default function OllamaChat() {
     <div className="flex flex-col w-full max-w-2xl mx-auto p-4 h-[600px] border rounded-lg">
       <div className="mb-4 flex items-center">
         <label htmlFor="model-select" className="mr-2 text-sm font-medium">
-          Model:
+          Modèle:
         </label>
         <select
           id="model-select"
@@ -112,8 +114,8 @@ export default function OllamaChat() {
             ))
           ) : (
             <>
-              <option value="llama3.2">llama3.2</option>
-              <option value="mistral">mistral</option>
+              <option value="ai/llama3.2:latest">Llama 3.2 (Docker Model Runner)</option>
+              <option value="ai/smollm2:latest">SmolLM2 (Docker Model Runner)</option>
             </>
           )}
         </select>
@@ -122,7 +124,7 @@ export default function OllamaChat() {
       <div className="flex-1 overflow-y-auto mb-4 space-y-4 p-4 border rounded bg-gray-50">
         {messages.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
-            Start a conversation with Ollama
+            Commencez une conversation avec Docker Model Runner
           </div>
         ) : (
           messages.map((message, index) => (
@@ -135,7 +137,7 @@ export default function OllamaChat() {
               }`}
             >
               <p className="text-sm font-semibold mb-1">
-                {message.role === 'user' ? 'You' : 'Ollama'}
+                {message.role === 'user' ? 'Vous' : 'Llama 3.2'}
               </p>
               <p className="whitespace-pre-wrap">{message.content}</p>
             </div>
@@ -149,7 +151,7 @@ export default function OllamaChat() {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message..."
+          placeholder="Tapez votre message..."
           className="flex-1 p-2 border rounded"
           disabled={isLoading}
         />
@@ -158,7 +160,7 @@ export default function OllamaChat() {
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
           disabled={isLoading || !input.trim()}
         >
-          {isLoading ? 'Sending...' : 'Send'}
+          {isLoading ? 'Envoi...' : 'Envoyer'}
         </button>
       </form>
     </div>

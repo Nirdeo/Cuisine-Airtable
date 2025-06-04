@@ -121,7 +121,7 @@ export default function Home() {
             <span className="text-xl font-bold">CuisineAI</span>
           </div>
           <p className="text-gray-400">
-            Propulsé par Docker Model Runner • Données stockées sur Airtable • Développé avec Next.js
+            Propulsé par Docker Model Runner & Llama 3.2 • Données stockées sur Airtable • Développé avec Next.js
           </p>
         </div>
       </footer>
