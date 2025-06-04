@@ -93,7 +93,7 @@ export async function generateResponse(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: model.replace('ai/', ''), // Enlever le préfixe ai/ si présent
+        model: model,
         messages,
         temperature: options.temperature || 0.7,
         top_p: options.topP,
@@ -205,7 +205,7 @@ export async function streamResponse(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: model.replace('ai/', ''),
+        model: model,
         messages,
         temperature: options.temperature || 0.7,
         top_p: options.topP,
